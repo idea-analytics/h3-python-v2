@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "locale": "English_United States.1252",
+  "metadata": {
+    "appmode": "python-shiny",
+    "entrypoint": "app"
+  },
+  "python": {
+    "version": "3.13.5",
+    "package_manager": {
+      "name": "pip",
+      "version": "25.1",
+      "package_file": "requirements.txt"
+    }
+  },
+  "files": {
+    "requirements.txt": {
+      "checksum": "3876b693c44e3d5368353b78bbca5f9f"
+    },
+    "Population-2023-filtered.csv": {
+      "checksum": "09ef960d47dda980a59ce3126471e539"
+    },
+    "app.py": {
+      "checksum": "6f2e5dd60dadf5050532da1a6eed3b3e"
+    },
+    "load_data.py": {
+      "checksum": "208dc213f83076d083a26249bef4c3ae"
+    }
+  }
+}

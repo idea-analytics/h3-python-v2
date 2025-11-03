@@ -1,0 +1,7 @@
+pandas
+geopandas
+h3
+numpy
+shapely
+shiny
+plotly
