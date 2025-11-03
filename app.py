@@ -84,14 +84,15 @@ def distribute_population_fast(tracts_gdf, hex_ids):
     hexes_gdf = gpd.GeoDataFrame({'hex_id': hex_ids, 'geometry': hex_polygons}, crs='EPSG:4326')
     hexes_gdf['population'] = 0.0
     # Project to a planar CRS before computing area
+    # Filter invalid/empty hexes first
+    hexes_gdf = hexes_gdf[hexes_gdf.is_valid & ~hexes_gdf.is_empty].copy()
+
     # Project to planar CRS
     hexes_gdf_proj = hexes_gdf.to_crs(epsg=3083)  # meters
 
-# Ensure valid, non-empty geometries
-    hexes_gdf_proj = hexes_gdf_proj[hexes_gdf_proj.is_valid & ~hexes_gdf_proj.is_empty]
+    # Compute area safely
+    hexes_gdf['hex_area_m2'] = hexes_gdf_proj.geometry.area
 
-# Compute area safely
-    hexes_gdf['hex_area_m2'] = hexes_gdf_proj.geometry.area.values
 
 
 
@@ -203,5 +204,6 @@ def server(input, output, session):
         return ui.HTML(fig.to_html(include_plotlyjs="cdn"))
 
 app = App(app_ui, server)
+
 
 
