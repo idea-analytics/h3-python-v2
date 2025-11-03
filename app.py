@@ -43,9 +43,9 @@ def load_tracts():
 # -----------------------------
 # Filter tracts to metro areas (~40 mile radius)
 # -----------------------------
-def filter_metro_tracts(tracts_gdf, metro_centers, radius_deg=0.6):
+def filter_metro_tracts(tracts_gdf, metro_centers, radius_deg=0.64):
     selected = []
-    for name, (lon, lat) in metro_centers.items():
+    for name, (lat, lon) in metro_centers.items():
         # bounding box around metro center
         minx, maxx = lon - radius_deg, lon + radius_deg
         miny, maxy = lat - radius_deg, lat + radius_deg
@@ -142,7 +142,7 @@ def distribute_population_fast(tracts_gdf, resolution=6):
     # Distribute tract population to hexes
     for idx, tract in tracts_gdf.iterrows():
         tract_geom = tract.geometry
-        tract_pop = tract["Estimate!!Total:"]
+        tract_pop = tract.get("population", 0)
         if tract_geom is None or tract_geom.is_empty or pd.isna(tract_pop):
             continue
         
@@ -204,17 +204,17 @@ def create_map_zoomable(hexes_gdf):
             line=dict(width=0.5, color='white'),
             hovertemplate=(
                 f"<b>Hex ID:</b> {row['hex_id']}<br>"
-                f"<b>Population:</b> {row['population']:.0f}<br>"
+                f"<b>Population:</b> {int(row['population']):,}<br>"
                 f"<b>Density Score:</b> {row['score']:.2f}<extra></extra>"
             )
         ))
 
+    center_lat = hexes_gdf.geometry.centroid.y.mean()
+    center_lon = hexes_gdf.geometry.centroid.x.mean()
+
     fig.update_layout(
         mapbox_style="open-street-map",
-        mapbox=dict(
-            center={"lat": 31.5, "lon": -99.5},
-            zoom=5  # initial zoom level
-        ),
+        mapbox=dict(center={"lat": center_lat, "lon": center_lon}, zoom=5),
         margin={"l":0,"r":0,"t":0,"b":0},
         height=800
     )
@@ -234,9 +234,8 @@ def server(input, output, session):
     pop_df = load_population_csv()
     tracts_gdf = load_tracts()
     tracts_gdf = tracts_gdf.merge(pop_df, left_on='GEOID', right_on='Geography_clean', how='inner')
-    tracts_gdf = filter_metro_tracts(tracts_gdf, metro_centers, radius_deg=0.6)
-    hex_ids = generate_hexes(tracts_gdf, resolution=6)
-    hexes_gdf = distribute_population_fast(tracts_gdf, hex_ids)
+    tracts_gdf = filter_metro_tracts(tracts_gdf, METROS, radius_deg=0.64)
+    hexes_gdf = distribute_population_fast(tracts_gdf, resolution=6)
     hexes_gdf = calculate_scores(hexes_gdf)
 
     @reactive.Calc
@@ -251,8 +250,3 @@ def server(input, output, session):
         return ui.HTML(fig.to_html(include_plotlyjs="cdn"))
 
 app = App(app_ui, server)
-
-
-
-
-
