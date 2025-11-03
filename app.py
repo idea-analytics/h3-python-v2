@@ -9,18 +9,20 @@ import plotly.graph_objects as go
 # -----------------------------
 # Define metro centers
 # -----------------------------
-metro_centers = {
-    "El Paso": (-106.49, 31.76),
-    "Austin": (-97.74, 30.27),
-    "Dallas": (-96.80, 32.78),
-    "Houston": (-95.37, 29.76),
-    "Midland-Odessa": (-102.0, 31.84),
-    "Lubbock": (-101.85, 33.58),
-    "Corpus Christi": (-97.40, 27.80),
-    "San Antonio": (-98.49, 29.42)
+# Metro city centers (lat, lon)
+METROS = {
+    "El Paso": (31.7619, -106.4850),
+    "Austin": (30.2672, -97.7431),
+    "Dallas": (32.7767, -96.7970),
+    "Houston": (29.7604, -95.3698),
+    "Midland-Odessa": (31.8457, -102.3676),
+    "Lubbock": (33.5779, -101.8552),
+    "Corpus Christi": (27.8006, -97.3964),
+    "San Antonio": (29.4241, -98.4936),
 }
 
-radius_deg = 0.6  # ~40 miles ≈ 0.6 degrees
+# ~40 mile radius in degrees (~0.64 degrees lat)
+RADIUS_DEG = 0.64
 
 # -----------------------------
 # Load population and tracts
@@ -73,7 +75,8 @@ def generate_hexes(tracts_gdf, resolution=6):
     return list(hex_ids)
 
 def hex_to_polygon(hex_id):
-    boundary = h3.cell_to_boundary(hex_id)
+    """Convert H3 hex ID to shapely polygon"""
+    boundary = h3.cell_to_boundary(hex_id, geo_json=True)
     return Polygon(boundary)
 
 # -----------------------------
@@ -248,6 +251,7 @@ def server(input, output, session):
         return ui.HTML(fig.to_html(include_plotlyjs="cdn"))
 
 app = App(app_ui, server)
+
 
 
 
