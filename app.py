@@ -79,52 +79,96 @@ def hex_to_polygon(hex_id):
 # -----------------------------
 # Fast population distribution
 # -----------------------------
-def distribute_population_fast(tracts_gdf, hex_ids):
-    hex_polygons = [hex_to_polygon(h) for h in hex_ids]
-    hexes_gdf = gpd.GeoDataFrame({'hex_id': hex_ids, 'geometry': hex_polygons}, crs='EPSG:4326')
-    hexes_gdf['population'] = 0.0
-    # Project to a planar CRS before computing area
-    # Filter invalid/empty hexes first
-    hexes_gdf = hexes_gdf[hexes_gdf.is_valid & ~hexes_gdf.is_empty].copy()
-
-    # Project to planar CRS
-    hexes_gdf_proj = hexes_gdf.to_crs(epsg=3083)  # meters
-
-    # Compute area safely
-    hexes_gdf['hex_area_m2'] = hexes_gdf_proj.geometry.area
-
-
-
-
+def distribute_population_fast(tracts_gdf, resolution=6):
+    """
+    Filter tracts to metro areas, generate hexes, and distribute population.
+    """
+    # Filter to metro areas (~40 mi radius)
+    metros_geom = []
+    for lat, lon in METROS.values():
+        point = Point(lon, lat)
+        circle = point.buffer(RADIUS_DEG)  # rough circular area
+        metros_geom.append(circle)
+    
+    metro_union = gpd.GeoSeries(metros_geom).unary_union
+    tracts_gdf = tracts_gdf[tracts_gdf.intersects(metro_union)].copy()
+    
+    # Generate H3 hexes covering all tracts
+    hex_ids_set = set()
+    for idx, tract in tracts_gdf.iterrows():
+        geom = tract.geometry
+        if geom is None or geom.is_empty:
+            continue
+        if geom.geom_type == "Polygon":
+            hexes = h3.geo_to_cells(geom.__geo_interface__, resolution)
+            hex_ids_set.update(hexes)
+        elif geom.geom_type == "MultiPolygon":
+            for poly in geom.geoms:
+                hexes = h3.geo_to_cells(poly.__geo_interface__, resolution)
+                hex_ids_set.update(hexes)
+    
+    hex_ids = list(hex_ids_set)
+    
+    # Convert hexes to GeoDataFrame
+    hex_polygons = []
+    valid_hex_ids = []
+    for h in hex_ids:
+        try:
+            poly = hex_to_polygon(h)
+            if poly.is_valid and not poly.is_empty:
+                hex_polygons.append(poly)
+                valid_hex_ids.append(h)
+        except:
+            continue
+    
+    hexes_gdf = gpd.GeoDataFrame({
+        "hex_id": valid_hex_ids,
+        "geometry": hex_polygons
+    }, crs="EPSG:4326")
+    
+    # Project to planar CRS for area
+    hexes_gdf_proj = hexes_gdf.to_crs(epsg=3083)
+    hexes_gdf["hex_area_m2"] = hexes_gdf_proj.geometry.apply(lambda g: g.area if g.is_valid and not g.is_empty else 0)
+    
+    # Initialize population column
+    hexes_gdf["population"] = 0.0
+    
+    # Spatial index for faster intersection
     hex_sindex = hexes_gdf.sindex
-
+    
+    # Distribute tract population to hexes
     for idx, tract in tracts_gdf.iterrows():
         tract_geom = tract.geometry
-        tract_pop = tract['population']
-        if tract_geom is None or tract_geom.is_empty or tract_pop == 0:
+        tract_pop = tract["Estimate!!Total:"]
+        if tract_geom is None or tract_geom.is_empty or pd.isna(tract_pop):
             continue
-
-        candidate_idx = list(hex_sindex.intersection(tract_geom.bounds))
-        candidate_hexes = hexes_gdf.iloc[candidate_idx]
-
-        areas = []
+        
+        # Find intersecting hexes
+        possible_idx = list(hex_sindex.intersection(tract_geom.bounds))
+        intersecting_hexes = hexes_gdf.iloc[possible_idx]
+        
+        if len(intersecting_hexes) == 0:
+            continue
+        
+        # Compute intersection areas
+        intersection_areas = []
         hex_indices = []
-        for h_idx, hex_row in candidate_hexes.iterrows():
-            inter = tract_geom.intersection(hex_row.geometry)
-            if inter.is_empty:
+        for h_idx, hrow in intersecting_hexes.iterrows():
+            inter = tract_geom.intersection(hrow.geometry)
+            if inter.is_empty or not inter.is_valid:
                 continue
-            areas.append(inter.area)
+            intersection_areas.append(inter.area)
             hex_indices.append(h_idx)
-
-        if len(areas) == 0:
+        
+        total_inter_area = sum(intersection_areas)
+        if total_inter_area == 0:
             continue
-
-        areas = np.array(areas)
-        areas_norm = areas / areas.sum()
-
+        
+        # Distribute population proportionally
         for i, h_idx in enumerate(hex_indices):
-            hexes_gdf.at[h_idx, 'population'] += tract_pop * areas_norm[i]
-
+            weight = intersection_areas[i] / total_inter_area
+            hexes_gdf.at[h_idx, "population"] += tract_pop * weight
+    
     return hexes_gdf
 
 # -----------------------------
@@ -204,6 +248,7 @@ def server(input, output, session):
         return ui.HTML(fig.to_html(include_plotlyjs="cdn"))
 
 app = App(app_ui, server)
+
 
 
 
