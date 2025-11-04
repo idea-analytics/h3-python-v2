@@ -714,7 +714,7 @@ def server(input, output, session):
     @output
     @render.ui
     def map_plot():
-        """Render viewport-filtered hex map as a HeatMap using Folium"""
+        """Render viewport-filtered hex map using Folium HeatMap"""
         data = hex_data.get()
         if not data or data['data'].empty:
             return ui.HTML("<p>No data to display</p>")
@@ -723,14 +723,14 @@ def server(input, output, session):
         zoom = input.zoom_level()
         fast_mode = input.fast_mode()
 
-        # Map center
+        # Map center (Texas)
         center_lat, center_lng = 30.0, -99.0
 
-        # Filter by viewport
+        # Filter hexes by viewport
         bounds = get_zoom_level_bounds(center_lat, center_lng, zoom)
         filtered_df = filter_hexes_by_viewport(df, bounds, zoom)
 
-        # Fast mode subsampling for very large datasets
+        # Fast mode subsampling for large datasets
         if fast_mode and len(filtered_df) > 5000:
             filtered_df = filtered_df.iloc[::5].copy()
 
@@ -739,23 +739,23 @@ def server(input, output, session):
             'total_count': len(df)
         })
 
-        # Folium base map
+        # Folium map base
         m = folium.Map(location=[center_lat, center_lng], zoom_start=zoom, tiles='CartoDB positron')
 
-        # Prepare heatmap data: [lat, lng, weight]
+        # Heatmap data: [lat, lng, weight]
         heat_data = filtered_df.apply(lambda row: [row['lat'], row['lng'], row['population']], axis=1).tolist()
 
         # Add heatmap layer
         HeatMap(
             heat_data,
-            radius=15,      # circle radius in pixels
-            blur=10,        # blur effect
-            max_zoom=12,    # max zoom for full intensity
+            radius=15,
+            blur=10,
+            max_zoom=12,
             min_opacity=0.3,
             max_val=filtered_df['population'].max() if 'population' in filtered_df.columns else 1
         ).add_to(m)
 
-        # Optional: add circle popups for small subset (e.g., top 100 by population)
+        # Optional: top hex circle markers (hover info)
         top_hexes = filtered_df.nlargest(100, 'population') if 'population' in filtered_df.columns else filtered_df.head(100)
         for _, row in top_hexes.iterrows():
             folium.CircleMarker(
@@ -774,6 +774,7 @@ def server(input, output, session):
             ).add_to(m)
 
         return ui.HTML(m._repr_html_())
+
         
         try:
             start_time = time.time()
