@@ -21,10 +21,10 @@
       "checksum": "578509696e205b049ab4f33165243468"
     },
     "app.py": {
-      "checksum": "40173b28b5dc07bdf006c70a1744c37e"
+      "checksum": "f486507b7e1c9f328ca6e0f7ae2721ac"
     },
-    "hex_data.parquet": {
-      "checksum": "63f53c2cc5dfd0a0ab321bdfc199e704"
+    "hex_data.feather": {
+      "checksum": "c9212aab80b60c695c79f79333c65467"
     },
     "hex_summary.json": {
       "checksum": "2610a29aed1246c83d4bc5a74b2dca4f"
