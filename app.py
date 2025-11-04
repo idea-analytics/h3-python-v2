@@ -587,17 +587,17 @@ def server(input, output, session):
         """Refresh data when button is clicked and clear caches"""
         print("Refreshing data and clearing caches...")
         
-        # Clear all caches
+        # Clear all existing caches
         if hasattr(load_hex_data_cached, 'cache_clear'):
             load_hex_data_cached.cache_clear()
-        if hasattr(create_interactive_map_cached, 'cache_clear'):
-            create_interactive_map_cached.cache_clear()
         if hasattr(create_summary_stats_cached, 'cache_clear'):
             create_summary_stats_cached.cache_clear()
         if hasattr(create_color_legend_cached, 'cache_clear'):
             create_color_legend_cached.cache_clear()
         if hasattr(get_color_from_score_cached, 'cache_clear'):
             get_color_from_score_cached.cache_clear()
+        if hasattr(sample_hexes_for_fast_mode, 'cache_clear'):
+            sample_hexes_for_fast_mode.cache_clear()
         
         # Reload data
         data = load_hex_data('hex_data.feather', 'hex_summary.json')
@@ -623,7 +623,6 @@ def print_cache_statistics():
     """Print cache statistics for debugging"""
     functions_with_cache = [
         ('load_hex_data_cached', load_hex_data_cached),
-        ('create_interactive_map_cached', create_interactive_map_cached),
         ('create_summary_stats_cached', create_summary_stats_cached),
         ('create_color_legend_cached', create_color_legend_cached),
         ('get_color_from_score_cached', get_color_from_score_cached),
