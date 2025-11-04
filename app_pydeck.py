@@ -97,24 +97,17 @@ def load_hex_data_cached(feather_file: str = 'hex_data.feather',
 # PyDeck Map Creation
 # -----------------------------
 @lru_cache_with_ttl(maxsize=20, ttl=600)  # Cache for 10 minutes
-def create_pydeck_map_cached(data_hash: str, fast_mode: bool = False) -> str:
-    """Create PyDeck map with caching - returns JSON string"""
+def create_pydeck_map_cached(data_hash: str, fast_mode: bool = False) -> Dict[str, Any]:
+    """Create PyDeck map data with caching - returns dict for reconstruction"""
     import pickle
     hex_data = pickle.loads(data_hash.encode('latin1'))
     
     if not hex_data or hex_data['data'].empty:
-        # Return empty deck
-        empty_deck = pdk.Deck(
-            map_style='mapbox://styles/mapbox/light-v9',
-            initial_view_state=pdk.ViewState(
-                latitude=30.0,
-                longitude=-99.0,
-                zoom=6,
-                pitch=0,
-            ),
-            layers=[]
-        )
-        return empty_deck.to_json()
+        return {
+            'empty': True,
+            'center_lat': 30.0,
+            'center_lon': -99.0
+        }
     
     summary = hex_data['summary']
     df = hex_data['data'].copy()
@@ -145,6 +138,43 @@ def create_pydeck_map_cached(data_hash: str, fast_mode: bool = False) -> str:
     df['blue'] = (255 * (1 - df['score_normalized'] / 255)).astype(int)
     df['alpha'] = 180  # Semi-transparent
     
+    return {
+        'empty': False,
+        'data': df.to_dict('records'),
+        'center_lat': summary['center_lat'],
+        'center_lon': summary['center_lon']
+    }
+
+def create_pydeck_map(hex_data, fast_mode=False):
+    """Create PyDeck map with caching"""
+    if not hex_data or hex_data['data'].empty:
+        return pdk.Deck(
+            map_style='mapbox://styles/mapbox/light-v9',
+            initial_view_state=pdk.ViewState(latitude=30.0, longitude=-99.0, zoom=6),
+            layers=[]
+        )
+    
+    # Serialize data for caching
+    import pickle
+    data_hash = pickle.dumps(hex_data).decode('latin1')
+    
+    # Get cached result
+    cached_result = create_pydeck_map_cached(data_hash, fast_mode)
+    
+    if cached_result['empty']:
+        return pdk.Deck(
+            map_style='mapbox://styles/mapbox/light-v9',
+            initial_view_state=pdk.ViewState(
+                latitude=cached_result['center_lat'], 
+                longitude=cached_result['center_lon'], 
+                zoom=6
+            ),
+            layers=[]
+        )
+    
+    # Recreate DataFrame from cached data
+    df = pd.DataFrame(cached_result['data'])
+    
     # Create H3 hexagon layer
     h3_layer = pdk.Layer(
         'H3HexagonLayer',
@@ -160,8 +190,8 @@ def create_pydeck_map_cached(data_hash: str, fast_mode: bool = False) -> str:
     
     # Set initial view state
     initial_view_state = pdk.ViewState(
-        latitude=summary['center_lat'],
-        longitude=summary['center_lon'],
+        latitude=cached_result['center_lat'],
+        longitude=cached_result['center_lon'],
         zoom=6,
         pitch=0,
     )
@@ -185,26 +215,7 @@ def create_pydeck_map_cached(data_hash: str, fast_mode: bool = False) -> str:
         }
     )
     
-    return deck.to_json()
-
-def create_pydeck_map(hex_data, fast_mode=False):
-    """Wrapper for cached PyDeck map creation"""
-    if not hex_data or hex_data['data'].empty:
-        return pdk.Deck(
-            map_style='mapbox://styles/mapbox/light-v9',
-            initial_view_state=pdk.ViewState(latitude=30.0, longitude=-99.0, zoom=6),
-            layers=[]
-        )
-    
-    # Serialize data for caching
-    import pickle
-    data_hash = pickle.dumps(hex_data).decode('latin1')
-    
-    # Get cached result
-    deck_json = create_pydeck_map_cached(data_hash, fast_mode)
-    
-    # Return deck object for Shiny
-    return pdk.Deck.from_json(deck_json)
+    return deck
 
 # -----------------------------
 # Statistics functions (cached)
