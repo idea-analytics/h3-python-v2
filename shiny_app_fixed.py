@@ -13,6 +13,14 @@ import branca.colormap as cm
 import os
 from pathlib import Path
 
+# Import H3 for accurate hex boundaries
+try:
+    import h3
+    H3_AVAILABLE = True
+except ImportError:
+    H3_AVAILABLE = False
+    print("Warning: H3 not available, using approximate hex shapes")
+
 # -----------------------------
 # Configuration
 # -----------------------------
@@ -25,8 +33,24 @@ HEX_RADIUS = 0.02
 # -----------------------------
 # Utility Functions
 # -----------------------------
-def hex_corners(lat, lng, radius=HEX_RADIUS):
-    """Return approximate hexagon corners around a centroid (lat, lng)"""
+def get_h3_hex_boundary(hex_id):
+    """Get actual H3 hex boundary coordinates (compatible with both H3 v3 and v4+)"""
+    try:
+        # Try new API first (H3 v4+)
+        boundary = h3.cell_to_boundary(hex_id)
+    except (AttributeError, NameError):
+        try:
+            # Fall back to old API (H3 v3)
+            boundary = h3.h3_to_geo_boundary(hex_id)
+        except (AttributeError, NameError):
+            # If H3 not available, create approximate hex
+            return hex_corners_fallback(0, 0, HEX_RADIUS)
+    
+    # Convert from (lat, lon) to [lat, lon] list format for Folium
+    return [[lat, lon] for lat, lon in boundary]
+
+def hex_corners_fallback(lat, lng, radius=HEX_RADIUS):
+    """Fallback approximate hexagon corners (only used if H3 unavailable)"""
     corners = []
     for i in range(6):
         angle_deg = 60 * i
@@ -111,14 +135,30 @@ def create_sample_data():
     }
     
     sample_data = []
-    hex_id = 1
     
     for metro_name, (lat, lon) in metros.items():
         # Create hexes in a grid around each metro
-        for i in range(-5, 6):
-            for j in range(-5, 6):
+        for i in range(-3, 4):
+            for j in range(-3, 4):
                 offset_lat = i * 0.05
                 offset_lon = j * 0.05
+                
+                hex_lat = lat + offset_lat
+                hex_lon = lon + offset_lon
+                
+                # Generate a real H3 hex ID for this location if H3 is available
+                if H3_AVAILABLE:
+                    try:
+                        # Try new API first (H3 v4+)
+                        try:
+                            hex_id = h3.latlng_to_cell(hex_lat, hex_lon, 6)
+                        except AttributeError:
+                            # Fall back to old API (H3 v3)
+                            hex_id = h3.geo_to_h3(hex_lat, hex_lon, 6)
+                    except Exception as e:
+                        hex_id = f'{metro_name}_{i}_{j}'
+                else:
+                    hex_id = f'{metro_name}_{i}_{j}'
                 
                 # Distance from metro center (for population simulation)
                 distance = math.sqrt(offset_lat**2 + offset_lon**2)
@@ -128,14 +168,13 @@ def create_sample_data():
                 
                 if population > 100:  # Only include significant population
                     sample_data.append({
-                        'hex_id': f'{metro_name}_{hex_id:04d}',
+                        'hex_id': hex_id,
                         'population': population,
                         'score': population / 1000000,  # Density score
                         'hex_area_m2': 1000000,  # 1 km²
-                        'lat': lat + offset_lat,
-                        'lng': lon + offset_lon
+                        'lat': hex_lat,
+                        'lng': hex_lon
                     })
-                    hex_id += 1
     
     df = pd.DataFrame(sample_data)
     print(f"Created {len(df)} sample hexes")
@@ -213,7 +252,7 @@ def create_color_legend_html(summary):
 # Map Creation
 # -----------------------------
 def create_folium_map(df_filtered, summary, zoom=DEFAULT_ZOOM):
-    """Create Folium map with hex polygons"""
+    """Create Folium map with hex polygons using actual H3 boundaries"""
     # Map center
     center_lat = summary.get('center_lat', DEFAULT_CENTER_LAT)
     center_lng = summary.get('center_lon', DEFAULT_CENTER_LON)
@@ -236,11 +275,18 @@ def create_folium_map(df_filtered, summary, zoom=DEFAULT_ZOOM):
         else:
             colormap = cm.LinearColormap(['green'], vmin=0, vmax=1)
         
-        # Add hex polygons
+        # Add hex polygons using actual H3 boundaries
         for _, row in df_filtered.iterrows():
             try:
+                # Use actual H3 hex boundary if hex_id is available and H3 is installed
+                if 'hex_id' in row and H3_AVAILABLE and pd.notna(row['hex_id']):
+                    hex_boundary = get_h3_hex_boundary(row['hex_id'])
+                else:
+                    # Fallback to approximate hex around centroid
+                    hex_boundary = hex_corners_fallback(row['lat'], row['lng'], radius=HEX_RADIUS)
+                
                 folium.Polygon(
-                    locations=hex_corners(row['lat'], row['lng'], radius=HEX_RADIUS),
+                    locations=hex_boundary,
                     color='white',
                     weight=0.5,
                     fill=True,
@@ -248,7 +294,7 @@ def create_folium_map(df_filtered, summary, zoom=DEFAULT_ZOOM):
                     fill_opacity=0.6,
                     popup=folium.Popup(
                         f"<div style='font-family:Arial;'>"
-                        f"<b>Hex ID:</b> {row['hex_id']}<br>"
+                        f"<b>Hex ID:</b> {row.get('hex_id', 'N/A')}<br>"
                         f"<b>Population:</b> {row['population']:,}<br>"
                         f"<b>Density Score:</b> {row.get('score',0):.4f}<br>"
                         f"<b>Location:</b> ({row['lat']:.4f}, {row['lng']:.4f})"
@@ -257,7 +303,7 @@ def create_folium_map(df_filtered, summary, zoom=DEFAULT_ZOOM):
                     )
                 ).add_to(m)
             except Exception as e:
-                print(f"Error adding hex {row['hex_id']}: {e}")
+                print(f"Error adding hex {row.get('hex_id', 'unknown')}: {e}")
                 continue
     
     return m
