@@ -142,14 +142,35 @@ def create_pydeck_html_fragment(deck):
         try {{
             // Parse deck configuration
             const deckConfig = {deck_json};
+            console.log('Deck config:', deckConfig);
             
-            // Create deck.gl instance
+            // Create deck.gl instance with explicit properties
             const {{Deck}} = deck;
             
             const deckgl = new Deck({{
                 container: '{deck_id}',
-                ...deckConfig,
+                mapStyle: deckConfig.mapStyle || 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+                initialViewState: deckConfig.initialViewState || {{
+                    longitude: -99.0,
+                    latitude: 30.0,
+                    zoom: 6,
+                    pitch: 0,
+                    bearing: 0
+                }},
+                layers: deckConfig.layers || [],
                 controller: true,
+                getTooltip: deckConfig.tooltip ? ({{object}}) => {{
+                    if (!object) return null;
+                    const tooltipConfig = deckConfig.tooltip;
+                    return {{
+                        html: tooltipConfig.html ? tooltipConfig.html
+                            .replace(/{{hex_id}}/g, object.hex_id || '')
+                            .replace(/{{population}}/g, object.population ? object.population.toLocaleString() : '')
+                            .replace(/{{score}}/g, object.score ? object.score.toFixed(4) : '')
+                            : `<div>Hex: ${{object.hex_id}}</div>`,
+                        style: tooltipConfig.style || {{}}
+                    }};
+                }} : undefined,
                 onLoad: () => console.log('PyDeck map successfully loaded in {deck_id}'),
                 onError: (error) => {{
                     console.error('PyDeck error:', error);
