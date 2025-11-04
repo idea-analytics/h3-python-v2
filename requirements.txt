@@ -5,3 +5,5 @@ numpy
 shapely
 shiny
 plotly
+pyarrow
+fastparquet
