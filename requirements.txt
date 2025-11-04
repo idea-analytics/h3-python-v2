@@ -8,4 +8,5 @@ plotly
 pyarrow
 fastparquet
 pydeck
+folium
 
