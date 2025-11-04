@@ -20,7 +20,7 @@ This will:
 - Generate H3 hexagonal grid at resolution 6
 - Distribute population to hexes
 - Calculate density scores
-- Export `hex_data.json`
+- Export `hex_data.parquet` and `hex_summary.json`
 
 **Requirements for local processing:**
 - pandas
@@ -28,18 +28,21 @@ This will:
 - h3
 - numpy
 - shapely
+- pyarrow (for Parquet export)
 - Your existing `load_data.py` and `Population-2023-filtered.csv`
 
 ### Step 2: Deploy to Posit Connect
 
 Upload these files to Posit Connect:
 - `app.py` (the visualization app)
-- `hex_data.json` (generated from Step 1)
+- `hex_data.parquet` (generated from Step 1)
+- `hex_summary.json` (generated from Step 1)
 
 **Requirements for Posit Connect:**
 - shiny
 - plotly
 - pandas
+- pyarrow
 
 ## Features
 
@@ -74,27 +77,35 @@ Each metro area includes a ~40-mile radius around the city center.
 
 ```
 project/
-├── data_processor.py     # Local data processing
-├── app.py               # Shiny visualization app
-├── hex_data.json        # Generated hex data (upload to Connect)
-├── load_data.py         # Your existing data loader
+├── data_processor.py         # Local data processing
+├── app.py                   # Shiny visualization app
+├── hex_data.parquet         # Generated hex data (upload to Connect)
+├── hex_summary.json         # Generated summary stats (upload to Connect)
+├── load_data.py             # Your existing data loader
 ├── Population-2023-filtered.csv  # Your census data
-└── README.md           # This file
+└── README.md               # This file
 ```
 
 ## Troubleshooting
 
-1. **"hex_data.json not found"**: Make sure you've run `data_processor.py` and uploaded the JSON file to Posit Connect
+1. **"hex_data.parquet not found"**: Make sure you've run `data_processor.py` and uploaded both Parquet and JSON files to Posit Connect
 
-2. **Import errors in data_processor.py**: Ensure all required packages are installed locally
+2. **Import errors in data_processor.py**: Ensure all required packages are installed locally (including `pyarrow`)
 
-3. **Empty map**: Check that hex_data.json contains valid data and summary statistics
+3. **Empty map**: Check that hex_data.parquet contains valid data and hex_summary.json has proper statistics
 
-4. **Performance issues**: The visualization app is lightweight and should run smoothly on Posit Connect
+4. **Performance issues**: The Parquet format should load much faster than JSON. If still slow, consider reducing hex resolution
+
+## Benefits of Parquet Format
+
+- **File size**: 5-10x smaller than JSON
+- **Loading speed**: Much faster read times
+- **Compression**: Better data compression
+- **Efficiency**: Optimized for large datasets
 
 ## Refreshing Data
 
 To update the visualization with new data:
 1. Run `data_processor.py` locally with updated source data
-2. Upload the new `hex_data.json` to Posit Connect
+2. Upload the new `hex_data.parquet` and `hex_summary.json` to Posit Connect
 3. Click "Refresh Map" in the app interface

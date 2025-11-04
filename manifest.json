@@ -18,13 +18,16 @@
       "checksum": "3876b693c44e3d5368353b78bbca5f9f"
     },
     "README.md": {
-      "checksum": "30399bbb294cb3b221adcea894deef91"
+      "checksum": "578509696e205b049ab4f33165243468"
     },
     "app.py": {
-      "checksum": "10d52120bc523c3af14f9acb81c5b439"
+      "checksum": "40173b28b5dc07bdf006c70a1744c37e"
     },
     "hex_data.json": {
-      "checksum": "0b214bf5e6a8b2644800819629912377"
+      "checksum": "fc489e9c201a9fe3fafd135d76966cae"
+    },
+    "hex_data.parquet": {
+      "checksum": "63f53c2cc5dfd0a0ab321bdfc199e704"
     }
   }
 }
