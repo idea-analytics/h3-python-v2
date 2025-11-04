@@ -13,6 +13,9 @@ import functools
 import time
 import math
 from typing import Optional, Dict, Any, Tuple, List
+from shiny import ui, render
+import folium
+from folium.plugins import HeatMap
 
 # -----------------------------
 # Viewport and H3 Utilities
@@ -711,37 +714,66 @@ def server(input, output, session):
     @output
     @render.ui
     def map_plot():
-        """Render the viewport-optimized PyDeck map"""
+        """Render viewport-filtered hex map as a HeatMap using Folium"""
         data = hex_data.get()
+        if not data or data['data'].empty:
+            return ui.HTML("<p>No data to display</p>")
+
+        df = data['data']
         zoom = input.zoom_level()
         fast_mode = input.fast_mode()
-        center_lat = map_center_lat.get()
-        center_lng = map_center_lng.get()
-        
-        if not data:
-            loading_status = loading_state.get()
-            blank_map_html = f"""
-<div style="width: 100%; height: 800px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-     display: flex; align-items: center; justify-content: center; position: relative; border-radius: 8px;">
-    <div style="text-align: center; color: white;">
-        <div style="font-size: 24px; margin-bottom: 10px;">🔍</div>
-        <div style="font-size: 18px; font-weight: bold; margin-bottom: 5px;">Viewport-Filtered Texas Metro Map</div>
-        <div style="font-size: 14px; opacity: 0.9;">{loading_status}</div>
-        <div style="margin-top: 15px;">
-            <div style="width: 200px; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; margin: 0 auto;">
-                <div style="width: 60%; height: 100%; background: white; border-radius: 2px; animation: pulse 2s ease-in-out infinite;"></div>
-            </div>
-        </div>
-    </div>
-</div>
-<style>
-@keyframes pulse {{
-    0%, 100% {{ opacity: 1; }}
-    50% {{ opacity: 0.5; }}
-}}
-</style>
-            """
-            return ui.HTML(blank_map_html)
+
+        # Map center
+        center_lat, center_lng = 30.0, -99.0
+
+        # Filter by viewport
+        bounds = get_zoom_level_bounds(center_lat, center_lng, zoom)
+        filtered_df = filter_hexes_by_viewport(df, bounds, zoom)
+
+        # Fast mode subsampling for very large datasets
+        if fast_mode and len(filtered_df) > 5000:
+            filtered_df = filtered_df.iloc[::5].copy()
+
+        viewport_info.set({
+            'filtered_count': len(filtered_df),
+            'total_count': len(df)
+        })
+
+        # Folium base map
+        m = folium.Map(location=[center_lat, center_lng], zoom_start=zoom, tiles='CartoDB positron')
+
+        # Prepare heatmap data: [lat, lng, weight]
+        heat_data = filtered_df.apply(lambda row: [row['lat'], row['lng'], row['population']], axis=1).tolist()
+
+        # Add heatmap layer
+        HeatMap(
+            heat_data,
+            radius=15,      # circle radius in pixels
+            blur=10,        # blur effect
+            max_zoom=12,    # max zoom for full intensity
+            min_opacity=0.3,
+            max_val=filtered_df['population'].max() if 'population' in filtered_df.columns else 1
+        ).add_to(m)
+
+        # Optional: add circle popups for small subset (e.g., top 100 by population)
+        top_hexes = filtered_df.nlargest(100, 'population') if 'population' in filtered_df.columns else filtered_df.head(100)
+        for _, row in top_hexes.iterrows():
+            folium.CircleMarker(
+                location=[row['lat'], row['lng']],
+                radius=5,
+                color='white',
+                fill=True,
+                fill_color='blue',
+                fill_opacity=0.7,
+                popup=folium.Popup(
+                    f"<b>Hex:</b> {row['hex_id']}<br>"
+                    f"<b>Population:</b> {row.get('population', 0):,}<br>"
+                    f"<b>Score:</b> {row.get('score', 0):.4f}",
+                    max_width=250
+                )
+            ).add_to(m)
+
+        return ui.HTML(m._repr_html_())
         
         try:
             start_time = time.time()
