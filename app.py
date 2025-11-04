@@ -13,9 +13,10 @@ from pathlib import Path
 # Data loading functions
 # -----------------------------
 def load_hex_data(parquet_file='hex_data.parquet', summary_file='hex_summary.json'):
-    """Load pre-processed hex data from Parquet and summary from JSON"""
+    """Load pre-processed hex data from Parquet and summary from JSON with caching"""
     try:
         # Load hex data from Parquet
+        print(f"Loading hex data from {parquet_file}...")
         df = pd.read_parquet(parquet_file)
         print(f"Loaded {len(df)} hexes from Parquet file")
         
@@ -37,8 +38,12 @@ def load_hex_data(parquet_file='hex_data.parquet', summary_file='hex_summary.jso
             }
         
         # Convert DataFrame to the format expected by the visualization
+        # Only include hexes with population > 0 for better performance
+        df_filtered = df[df['population'] > 0].copy()
+        print(f"Filtered to {len(df_filtered)} hexes with population > 0")
+        
         hexes_list = []
-        for idx, row in df.iterrows():
+        for idx, row in df_filtered.iterrows():
             hexes_list.append({
                 'hex_id': row['hex_id'],
                 'population': row['population'],
@@ -49,6 +54,9 @@ def load_hex_data(parquet_file='hex_data.parquet', summary_file='hex_summary.jso
                     'lats': row['lats']
                 }
             })
+        
+        # Update summary with filtered data
+        summary['total_hexes'] = len(hexes_list)
         
         return {
             'summary': summary,
@@ -84,10 +92,10 @@ def get_color_from_score(score, min_score, max_score):
 # Plotly map creation
 # -----------------------------
 def create_interactive_map(hex_data):
-    """Create interactive Plotly map from hex data"""
+    """Create interactive Plotly map from hex data using efficient rendering"""
     if not hex_data:
         return go.Figure().add_annotation(
-            text="No data available. Please upload hex_data.json",
+            text="No data available. Please upload hex_data.parquet",
             xref="paper", yref="paper",
             x=0.5, y=0.5, showarrow=False
         )
@@ -100,8 +108,13 @@ def create_interactive_map(hex_data):
     min_score = summary['score_min']
     max_score = summary['score_max']
     
-    # Add each hex as a separate trace for better performance
-    for hex_data_point in hexes:
+    # Pre-calculate all coordinates and colors for efficient rendering
+    all_lons = []
+    all_lats = []
+    all_colors = []
+    all_hover_text = []
+    
+    for i, hex_data_point in enumerate(hexes):
         coords = hex_data_point['coordinates']
         lons = coords['lons']
         lats = coords['lats']
@@ -110,24 +123,55 @@ def create_interactive_map(hex_data):
         population = hex_data_point['population']
         hex_id = hex_data_point['hex_id']
         
-        color = get_color_from_score(score, min_score, max_score)
+        # Normalize score for color mapping
+        if max_score > min_score:
+            norm = (score - min_score) / (max_score - min_score)
+        else:
+            norm = 0.5
         
-        fig.add_trace(go.Scattermapbox(
-            lon=lons,
-            lat=lats,
-            mode='lines',
-            fill='toself',
-            fillcolor=color,
-            line=dict(width=0.5, color='rgba(255,255,255,0.8)'),
-            hovertemplate=(
-                f"<b>Hex ID:</b> {hex_id}<br>"
-                f"<b>Population:</b> {int(population):,}<br>"
-                f"<b>Density Score:</b> {score:.4f}<br>"
-                "<extra></extra>"
-            ),
-            showlegend=False,
-            name=f"Hex {hex_id}"
-        ))
+        # Create hover text
+        hover_text = f"Hex: {hex_id}<br>Population: {int(population):,}<br>Density: {score:.4f}"
+        
+        # Add coordinates for this hex (with None separators for multiple polygons)
+        all_lons.extend(lons)
+        all_lons.append(None)  # Separator between polygons
+        all_lats.extend(lats)
+        all_lats.append(None)
+        
+        # Repeat color and hover text for each coordinate point
+        hex_color = norm  # Use normalized value for colorscale
+        all_colors.extend([hex_color] * len(lons))
+        all_colors.append(None)
+        
+        all_hover_text.extend([hover_text] * len(lons))
+        all_hover_text.append(None)
+    
+    # Create a single trace with all polygons
+    fig.add_trace(go.Scattermapbox(
+        lon=all_lons,
+        lat=all_lats,
+        mode='lines',
+        fill='toself',
+        line=dict(width=0.5, color='rgba(255,255,255,0.8)'),
+        marker=dict(
+            color=all_colors,
+            colorscale='RdYlBu_r',  # Red-Yellow-Blue reversed (blue=low, red=high)
+            cmin=0,
+            cmax=1,
+            showscale=True,
+            colorbar=dict(
+                title="Population Density",
+                titleside="right",
+                tickmode="linear",
+                tick0=0,
+                dtick=0.2
+            )
+        ),
+        text=all_hover_text,
+        hovertemplate='%{text}<extra></extra>',
+        showlegend=False,
+        name="Population Density"
+    ))
     
     # Set map center and zoom
     center_lat = summary['center_lat']
@@ -219,11 +263,22 @@ app_ui = ui.page_fluid(
         ),
         
         ui.div(
-            ui.input_action_button(
-                "refresh", 
-                "Refresh Map", 
-                class_="btn-primary",
-                style="margin-bottom: 15px;"
+            ui.row(
+                ui.column(6,
+                    ui.input_action_button(
+                        "refresh", 
+                        "Refresh Map", 
+                        class_="btn-primary",
+                        style="margin-bottom: 15px; margin-right: 10px;"
+                    )
+                ),
+                ui.column(6,
+                    ui.input_checkbox(
+                        "fast_mode",
+                        "Fast Loading Mode (fewer hexes)",
+                        value=False
+                    )
+                )
             ),
             ui.output_ui("map_plot")
         ),
@@ -232,7 +287,8 @@ app_ui = ui.page_fluid(
             ui.p([
                 "Data shows population density across Texas metro areas using H3 hexagonal grid. ",
                 "Hover over hexes to see population and density values. ",
-                "Use mouse to zoom and pan the map."
+                "Use mouse to zoom and pan the map. ",
+                "Enable Fast Loading Mode for better performance with large datasets."
             ], style="font-size: 12px; color: #6c757d; text-align: center; margin-top: 15px;")
         ),
         
@@ -287,7 +343,20 @@ def server(input, output, session):
             )
         
         try:
-            fig = create_interactive_map(data)
+            # Apply fast mode if enabled
+            if input.fast_mode():
+                # Sample every 3rd hex for faster loading
+                hexes = data['hexes'][::3]
+                fast_data = {
+                    'summary': data['summary'],
+                    'hexes': hexes
+                }
+                print(f"Fast mode: Rendering {len(hexes)} of {len(data['hexes'])} hexes")
+                fig = create_interactive_map(fast_data)
+            else:
+                print(f"Full mode: Rendering {len(data['hexes'])} hexes")
+                fig = create_interactive_map(data)
+            
             return ui.HTML(fig.to_html(include_plotlyjs="cdn"))
         except Exception as e:
             print(f"Error creating map: {e}")
@@ -304,6 +373,13 @@ def server(input, output, session):
         print("Refreshing data...")
         data = load_hex_data('hex_data.parquet', 'hex_summary.json')
         hex_data.set(data)
+    
+    @reactive.Effect
+    @reactive.event(input.fast_mode)
+    def toggle_fast_mode():
+        """Re-render map when fast mode is toggled"""
+        mode = "fast" if input.fast_mode() else "full"
+        print(f"Switching to {mode} mode...")
 
 # -----------------------------
 # Create Shiny App
