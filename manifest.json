@@ -15,16 +15,13 @@
   },
   "files": {
     "requirements.txt": {
-      "checksum": "3876b693c44e3d5368353b78bbca5f9f"
+      "checksum": "6327a752255b1eca003fc3a202774337"
     },
     "README.md": {
       "checksum": "578509696e205b049ab4f33165243468"
     },
     "app.py": {
       "checksum": "40173b28b5dc07bdf006c70a1744c37e"
-    },
-    "hex_data.json": {
-      "checksum": "fc489e9c201a9fe3fafd135d76966cae"
     },
     "hex_data.parquet": {
       "checksum": "63f53c2cc5dfd0a0ab321bdfc199e704"
