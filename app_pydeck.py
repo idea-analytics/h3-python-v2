@@ -17,9 +17,14 @@ from typing import Optional, Dict, Any
 # -----------------------------
 def lru_cache_with_ttl(maxsize: int = 128, ttl: int = 300):
     """LRU cache with time-to-live (TTL) in seconds"""
+    from collections import namedtuple
+    
+    # Create namedtuple to match functools.lru_cache format
+    CacheInfo = namedtuple('CacheInfo', ['hits', 'misses', 'maxsize', 'currsize'])
+    
     def decorator(func):
         cache = {}
-        cache_info = {'hits': 0, 'misses': 0}
+        cache_stats = {'hits': 0, 'misses': 0}
         
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -29,12 +34,12 @@ def lru_cache_with_ttl(maxsize: int = 128, ttl: int = 300):
             if key in cache:
                 value, timestamp = cache[key]
                 if current_time - timestamp < ttl:
-                    cache_info['hits'] += 1
+                    cache_stats['hits'] += 1
                     return value
                 else:
                     del cache[key]
             
-            cache_info['misses'] += 1
+            cache_stats['misses'] += 1
             result = func(*args, **kwargs)
             cache[key] = (result, current_time)
             
@@ -44,8 +49,14 @@ def lru_cache_with_ttl(maxsize: int = 128, ttl: int = 300):
             
             return result
         
-        wrapper.cache_info = lambda: cache_info
-        wrapper.cache_clear = lambda: cache.clear()
+        # Return namedtuple like functools.lru_cache
+        wrapper.cache_info = lambda: CacheInfo(
+            hits=cache_stats['hits'],
+            misses=cache_stats['misses'], 
+            maxsize=maxsize,
+            currsize=len(cache)
+        )
+        wrapper.cache_clear = lambda: (cache.clear(), cache_stats.update({'hits': 0, 'misses': 0}))[1]
         return wrapper
     return decorator
 
