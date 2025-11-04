@@ -7,4 +7,5 @@ shiny
 plotly
 pyarrow
 fastparquet
+pickle
 pydeck
