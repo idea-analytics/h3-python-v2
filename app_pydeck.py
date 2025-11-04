@@ -548,18 +548,18 @@ def server(input, output, session):
                 cache_info = create_pydeck_map_cached.cache_info()
                 print(f"PyDeck cache - Hits: {cache_info.hits}, Misses: {cache_info.misses}")
             
-            # Convert PyDeck to HTML properly for Shiny
+            # Convert PyDeck to HTML fragment for Shiny
             try:
-                # Correct PyDeck to_html() for Shiny
-                deck_html = deck.to_html(as_string=True, notebook_display=False)
+                # Use _repr_html_() for Shiny - returns just the fragment, not full HTML document
+                deck_html = deck._repr_html_()
                 if deck_html and deck_html.strip():
                     return ui.HTML(deck_html)
                 else:
-                    print("PyDeck to_html() returned empty content")
+                    print("PyDeck _repr_html_() returned empty content")
                     # Fallback to manual HTML construction
                     return create_fallback_html(data, input.fast_mode())
             except Exception as html_error:
-                print(f"PyDeck to_html() failed: {html_error}")
+                print(f"PyDeck _repr_html_() failed: {html_error}")
                 # Fallback to manual HTML construction
                 return create_fallback_html(data, input.fast_mode())
             
