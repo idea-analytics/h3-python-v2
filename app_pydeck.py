@@ -481,10 +481,10 @@ def server(input, output, session):
         data = load_hex_data_cached('hex_data.feather', 'hex_summary.json')
         if data:
             print(f"Loaded data with {data['summary']['total_hexes']} hexes")
-            # Cache hit/miss info
+            # Cache hit/miss info (fix namedtuple access)
             if hasattr(load_hex_data_cached, 'cache_info'):
                 cache_info = load_hex_data_cached.cache_info()
-                print(f"Cache info - Hits: {cache_info['hits']}, Misses: {cache_info['misses']}")
+                print(f"Cache info - Hits: {cache_info.hits}, Misses: {cache_info.misses}")
         else:
             print("Failed to load hex data")
         return data
@@ -532,17 +532,17 @@ def server(input, output, session):
             render_time = time.time() - start_time
             print(f"PyDeck map created in {render_time:.2f} seconds")
             
-            # Display cache statistics
+            # Display cache statistics (fix namedtuple access)
             if hasattr(create_pydeck_map_cached, 'cache_info'):
                 cache_info = create_pydeck_map_cached.cache_info()
-                print(f"PyDeck cache - Hits: {cache_info['hits']}, Misses: {cache_info['misses']}")
+                print(f"PyDeck cache - Hits: {cache_info.hits}, Misses: {cache_info.misses}")
             
-            # Convert PyDeck to HTML properly
+            # Convert PyDeck to HTML properly for Shiny
             try:
-                # PyDeck's to_html() method for Shiny
-                html_content = deck.to_html(as_string=True)
-                if html_content and html_content.strip():
-                    return ui.HTML(html_content)
+                # Correct PyDeck to_html() for Shiny
+                deck_html = deck.to_html(as_string=True, notebook_display=False)
+                if deck_html and deck_html.strip():
+                    return ui.HTML(deck_html)
                 else:
                     print("PyDeck to_html() returned empty content")
                     # Fallback to manual HTML construction
