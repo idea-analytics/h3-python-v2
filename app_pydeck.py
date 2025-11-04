@@ -93,6 +93,125 @@ def load_hex_data_cached(feather_file: str = 'hex_data.feather',
         print(f"Error loading data: {e}")
         return None
 
+def create_fallback_html(hex_data, fast_mode=False):
+    """Create fallback HTML visualization when PyDeck fails"""
+    summary = hex_data['summary']
+    df = hex_data['data'].copy()
+    
+    # Apply fast mode sampling if enabled
+    if fast_mode and len(df) > 1000:
+        df = df.iloc[::3].copy()
+        print(f"Fallback mode: Using {len(df)} hexes")
+    
+    # Convert to JSON for JavaScript
+    hexes_json = df.to_json(orient='records')
+    
+    min_score = summary['score_min']
+    max_score = summary['score_max']
+    
+    fallback_html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://unpkg.com/deck.gl@^8.9.0/dist.min.js"></script>
+    <script src="https://unpkg.com/h3-js@4.1.0/dist/h3-js.umd.js"></script>
+    <style>
+        #map {{
+            width: 100%;
+            height: 800px;
+            position: relative;
+        }}
+        .legend {{
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            z-index: 1000;
+        }}
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="legend">
+        <div style="font-weight: bold; margin-bottom: 8px;">Population Density</div>
+        <div style="width: 200px; height: 20px; background: linear-gradient(to right, rgb(0,128,255), rgb(255,0,0)); border: 1px solid #ccc;"></div>
+        <div style="display: flex; justify-content: space-between; width: 200px; font-size: 10px; margin-top: 5px;">
+            <span>{min_score:.6f}</span>
+            <span>{max_score:.6f}</span>
+        </div>
+        <div style="margin-top: 8px; font-size: 10px; color: #666;">
+            Fallback rendering (Deck.gl direct)
+        </div>
+    </div>
+
+    <script>
+        const {{Deck, H3HexagonLayer}} = deck;
+        
+        const hexData = {hexes_json};
+        const minScore = {min_score};
+        const maxScore = {max_score};
+        
+        // Normalize scores and add colors
+        hexData.forEach(hex => {{
+            const norm = maxScore > minScore ? (hex.score - minScore) / (maxScore - minScore) : 0.5;
+            hex.red = Math.round(255 * norm);
+            hex.green = Math.round(255 * (1 - norm) * 0.5);
+            hex.blue = Math.round(255 * (1 - norm));
+            hex.alpha = 180;
+        }});
+        
+        // Create deck.gl visualization
+        const deckgl = new Deck({{
+            container: 'map',
+            mapStyle: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+            initialViewState: {{
+                longitude: {summary['center_lon']},
+                latitude: {summary['center_lat']},
+                zoom: 6,
+                pitch: 0,
+                bearing: 0
+            }},
+            controller: true,
+            layers: [
+                new H3HexagonLayer({{
+                    id: 'h3-hexagon-layer',
+                    data: hexData,
+                    getHexagon: d => d.hex_id,
+                    getFillColor: d => [d.red, d.green, d.blue, d.alpha],
+                    getLineColor: [255, 255, 255, 100],
+                    lineWidthMinPixels: 0.5,
+                    pickable: true,
+                    autoHighlight: true,
+                    extruded: false
+                }})
+            ],
+            getTooltip: ({{object}}) => {{
+                if (!object) return null;
+                return {{
+                    html: `
+                        <div style="background: steelblue; color: white; padding: 10px; border-radius: 5px; font-size: 12px;">
+                            <b>Hex ID:</b> ${{object.hex_id}}<br/>
+                            <b>Population:</b> ${{object.population.toLocaleString()}}<br/>
+                            <b>Density Score:</b> ${{object.score.toFixed(4)}}
+                        </div>
+                    `
+                }};
+            }}
+        }});
+        
+        console.log('Fallback Deck.gl map rendered with', hexData.length, 'hexes');
+    </script>
+</body>
+</html>
+    """
+    
+    return ui.HTML(fallback_html)
+
 # -----------------------------
 # PyDeck Map Creation
 # -----------------------------
@@ -418,8 +537,20 @@ def server(input, output, session):
                 cache_info = create_pydeck_map_cached.cache_info()
                 print(f"PyDeck cache - Hits: {cache_info['hits']}, Misses: {cache_info['misses']}")
             
-            # Return PyDeck HTML
-            return ui.HTML(deck.to_html())
+            # Convert PyDeck to HTML properly
+            try:
+                # PyDeck's to_html() method for Shiny
+                html_content = deck.to_html(as_string=True)
+                if html_content and html_content.strip():
+                    return ui.HTML(html_content)
+                else:
+                    print("PyDeck to_html() returned empty content")
+                    # Fallback to manual HTML construction
+                    return create_fallback_html(data, input.fast_mode())
+            except Exception as html_error:
+                print(f"PyDeck to_html() failed: {html_error}")
+                # Fallback to manual HTML construction
+                return create_fallback_html(data, input.fast_mode())
             
         except Exception as e:
             print(f"Error creating PyDeck map: {e}")
