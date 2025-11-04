@@ -92,7 +92,7 @@ def get_color_from_score(score, min_score, max_score):
 # Plotly map creation
 # -----------------------------
 def create_interactive_map(hex_data):
-    """Create interactive Plotly map from hex data using efficient rendering"""
+    """Create interactive Plotly map from hex data using reliable individual traces"""
     if not hex_data:
         return go.Figure().add_annotation(
             text="No data available. Please upload hex_data.parquet",
@@ -108,12 +108,7 @@ def create_interactive_map(hex_data):
     min_score = summary['score_min']
     max_score = summary['score_max']
     
-    # Pre-calculate all coordinates and colors for efficient rendering
-    all_lons = []
-    all_lats = []
-    all_colors = []
-    all_hover_text = []
-    
+    # Create individual traces but with optimized settings
     for i, hex_data_point in enumerate(hexes):
         coords = hex_data_point['coordinates']
         lons = coords['lons']
@@ -129,49 +124,63 @@ def create_interactive_map(hex_data):
         else:
             norm = 0.5
         
-        # Create hover text
-        hover_text = f"Hex: {hex_id}<br>Population: {int(population):,}<br>Density: {score:.4f}"
+        # Generate color
+        red = int(255 * norm)
+        green = int(255 * (1 - norm) * 0.5)
+        blue = int(255 * (1 - norm))
+        color = f'rgba({red},{green},{blue},0.7)'
         
-        # Add coordinates for this hex (with None separators for multiple polygons)
-        all_lons.extend(lons)
-        all_lons.append(None)  # Separator between polygons
-        all_lats.extend(lats)
-        all_lats.append(None)
+        # Add trace for this hex
+        fig.add_trace(go.Scattermapbox(
+            lon=lons,
+            lat=lats,
+            mode='lines',
+            fill='toself',
+            fillcolor=color,
+            line=dict(width=0.3, color='rgba(255,255,255,0.6)'),
+            hovertemplate=(
+                f"<b>Hex:</b> {hex_id}<br>"
+                f"<b>Population:</b> {int(population):,}<br>"
+                f"<b>Density:</b> {score:.4f}<br>"
+                "<extra></extra>"
+            ),
+            showlegend=False,
+            name=""  # Empty name for cleaner legend
+        ))
         
-        # Repeat color and hover text for each coordinate point
-        hex_color = norm  # Use normalized value for colorscale
-        all_colors.extend([hex_color] * len(lons))
-        all_colors.append(None)
-        
-        all_hover_text.extend([hover_text] * len(lons))
-        all_hover_text.append(None)
+        # Limit number of traces for very large datasets
+        if i >= 2000:  # Max 2000 hexes for performance
+            print(f"Limiting display to first 2000 hexes out of {len(hexes)} for performance")
+            break
     
-    # Create a single trace with all polygons
-    fig.add_trace(go.Scattermapbox(
-        lon=all_lons,
-        lat=all_lats,
-        mode='lines',
-        fill='toself',
-        line=dict(width=0.5, color='rgba(255,255,255,0.8)'),
-        marker=dict(
-            color=all_colors,
-            colorscale='RdYlBu_r',  # Red-Yellow-Blue reversed (blue=low, red=high)
-            cmin=0,
-            cmax=1,
-            showscale=True,
-            colorbar=dict(
-                title="Population Density",
-                titleside="right",
-                tickmode="linear",
-                tick0=0,
-                dtick=0.2
-            )
-        ),
-        text=all_hover_text,
-        hovertemplate='%{text}<extra></extra>',
-        showlegend=False,
-        name="Population Density"
-    ))
+    # Add color legend as separate element
+    if len(hexes) > 0:
+        # Create invisible scatter for colorbar
+        legend_values = [0, 0.25, 0.5, 0.75, 1.0]
+        fig.add_trace(go.Scattermapbox(
+            lon=[summary['center_lon']] * len(legend_values),
+            lat=[summary['center_lat']] * len(legend_values),
+            mode='markers',
+            marker=dict(
+                size=0,  # Invisible
+                color=legend_values,
+                colorscale='RdYlBu_r',
+                cmin=0,
+                cmax=1,
+                showscale=True,
+                colorbar=dict(
+                    title="Population Density",
+                    titleside="right",
+                    tickmode="array",
+                    tickvals=[0, 0.25, 0.5, 0.75, 1.0],
+                    ticktext=['Low', 'Low-Med', 'Medium', 'Med-High', 'High'],
+                    len=0.7,
+                    thickness=15
+                )
+            ),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
     
     # Set map center and zoom
     center_lat = summary['center_lat']
