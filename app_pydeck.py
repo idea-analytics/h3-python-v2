@@ -104,6 +104,70 @@ def load_hex_data_cached(feather_file: str = 'hex_data.feather',
         print(f"Error loading data: {e}")
         return None
 
+def create_pydeck_html_fragment(deck):
+    """Create PyDeck HTML fragment without IPython dependency"""
+    import uuid
+    
+    # Generate unique ID for this deck instance
+    deck_id = f"deck_{uuid.uuid4().hex[:8]}"
+    
+    # Get deck JSON configuration
+    deck_json = deck.to_json()
+    
+    # Create HTML fragment with deck.gl CDN
+    html_fragment = f"""
+<div id="{deck_id}" style="width: 100%; height: 800px; position: relative; background-color: #f8f9fa;"></div>
+<script>
+(function() {{
+    // Load deck.gl if not already loaded
+    if (typeof deck === 'undefined') {{
+        console.log('Loading deck.gl library...');
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/deck.gl@^8.9.0/dist.min.js';
+        script.onload = function() {{
+            console.log('deck.gl loaded, initializing map...');
+            initializeDeck();
+        }};
+        script.onerror = function() {{
+            console.error('Failed to load deck.gl library');
+            document.getElementById('{deck_id}').innerHTML = '<div style="padding: 20px; text-align: center; color: #dc3545;">Failed to load deck.gl library</div>';
+        }};
+        document.head.appendChild(script);
+    }} else {{
+        console.log('deck.gl already loaded, initializing map...');
+        initializeDeck();
+    }}
+    
+    function initializeDeck() {{
+        try {{
+            // Parse deck configuration
+            const deckConfig = {deck_json};
+            
+            // Create deck.gl instance
+            const {{Deck}} = deck;
+            
+            const deckgl = new Deck({{
+                container: '{deck_id}',
+                ...deckConfig,
+                controller: true,
+                onLoad: () => console.log('PyDeck map successfully loaded in {deck_id}'),
+                onError: (error) => {{
+                    console.error('PyDeck error:', error);
+                    document.getElementById('{deck_id}').innerHTML = '<div style="padding: 20px; text-align: center; color: #dc3545;">Map rendering error: ' + error.message + '</div>';
+                }}
+            }});
+            
+        }} catch (error) {{
+            console.error('Error initializing PyDeck:', error);
+            document.getElementById('{deck_id}').innerHTML = '<div style="padding: 20px; text-align: center; color: #dc3545;">Map initialization error: ' + error.message + '</div>';
+        }}
+    }}
+}})();
+</script>
+"""
+    
+    return html_fragment
+
 def create_fallback_html(hex_data, fast_mode=False):
     """Create fallback HTML visualization when PyDeck fails"""
     summary = hex_data['summary']
@@ -548,18 +612,18 @@ def server(input, output, session):
                 cache_info = create_pydeck_map_cached.cache_info()
                 print(f"PyDeck cache - Hits: {cache_info.hits}, Misses: {cache_info.misses}")
             
-            # Convert PyDeck to HTML fragment for Shiny
+            # Generate PyDeck HTML fragment without IPython dependency
             try:
-                # Use _repr_html_() for Shiny - returns just the fragment, not full HTML document
-                deck_html = deck._repr_html_()
+                # Create HTML fragment manually (no IPython required)
+                deck_html = create_pydeck_html_fragment(deck)
                 if deck_html and deck_html.strip():
                     return ui.HTML(deck_html)
                 else:
-                    print("PyDeck _repr_html_() returned empty content")
+                    print("PyDeck HTML fragment generation returned empty content")
                     # Fallback to manual HTML construction
                     return create_fallback_html(data, input.fast_mode())
             except Exception as html_error:
-                print(f"PyDeck _repr_html_() failed: {html_error}")
+                print(f"PyDeck HTML fragment generation failed: {html_error}")
                 # Fallback to manual HTML construction
                 return create_fallback_html(data, input.fast_mode())
             
