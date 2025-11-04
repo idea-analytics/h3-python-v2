@@ -28,6 +28,9 @@
     },
     "hex_data.parquet": {
       "checksum": "63f53c2cc5dfd0a0ab321bdfc199e704"
+    },
+    "hex_summary.json": {
+      "checksum": "2610a29aed1246c83d4bc5a74b2dca4f"
     }
   }
 }
