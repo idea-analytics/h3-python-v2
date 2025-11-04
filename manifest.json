@@ -3,7 +3,7 @@
   "locale": "English_United States.1252",
   "metadata": {
     "appmode": "python-shiny",
-    "entrypoint": "app"
+    "entrypoint": "app_pydeck"
   },
   "python": {
     "version": "3.13.5",
@@ -15,16 +15,16 @@
   },
   "files": {
     "requirements.txt": {
-      "checksum": "6327a752255b1eca003fc3a202774337"
+      "checksum": "b210e148b57d9da01f0b3b4e7be179e1"
     },
     "README.md": {
       "checksum": "578509696e205b049ab4f33165243468"
     },
-    "app.py": {
-      "checksum": "f486507b7e1c9f328ca6e0f7ae2721ac"
+    "app_pydeck.py": {
+      "checksum": "b58ce683114ceff4f1d547be3d7504e6"
     },
     "hex_data.feather": {
-      "checksum": "c9212aab80b60c695c79f79333c65467"
+      "checksum": "8314eb9456f24d9d1d066307544b0c1d"
     },
     "hex_summary.json": {
       "checksum": "2610a29aed1246c83d4bc5a74b2dca4f"
