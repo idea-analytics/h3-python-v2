@@ -169,8 +169,10 @@ def create_interactive_map(hex_data):
                 cmax=1,
                 showscale=True,
                 colorbar=dict(
-                    title="Population Density",
-                    titleside="right",
+                    title=dict(
+                        text="Population Density",
+                        side="right"
+                    ),
                     tickmode="array",
                     tickvals=[0, 0.25, 0.5, 0.75, 1.0],
                     ticktext=['Low', 'Low-Med', 'Medium', 'Med-High', 'High'],
