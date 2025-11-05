@@ -15,22 +15,19 @@
   },
   "files": {
     "requirements.txt": {
-      "checksum": "12a544df351b26ca8d84188a4e535a5d"
-    },
-    "README.md": {
-      "checksum": "3a02b1417cdf88ad9925f05bb4380ca6"
+      "checksum": "2bf493f6485944a8af7164429b02cf51"
     },
     "hex_data.feather": {
-      "checksum": "59584b56049b864843f55b020e901a11"
+      "checksum": "3b8cce1e4a0da029b472fae76499018d"
     },
     "hex_summary.json": {
-      "checksum": "5fed147b8d9ec8b96faae521775e479a"
+      "checksum": "867f9f2ae949f8f30f71b5de582e86f8"
     },
     "shiny_app_fixed.py": {
       "checksum": "097dd57dab04531c80639ece54d92735"
     },
     "tract_data.feather": {
-      "checksum": "4e416b70581796e6c2b31dcfa6bcc4f8"
+      "checksum": "c834c136bc133ef6a7851aef8d0208b6"
     }
   }
 }
