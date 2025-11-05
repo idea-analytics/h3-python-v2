@@ -21,13 +21,16 @@
       "checksum": "3a02b1417cdf88ad9925f05bb4380ca6"
     },
     "hex_data.feather": {
-      "checksum": "5965f5a9f79a0e0999f7a88592bea0f0"
+      "checksum": "59584b56049b864843f55b020e901a11"
     },
     "hex_summary.json": {
-      "checksum": "2610a29aed1246c83d4bc5a74b2dca4f"
+      "checksum": "5fed147b8d9ec8b96faae521775e479a"
     },
     "shiny_app_fixed.py": {
-      "checksum": "4fdb2d54f5f25f6eaf90481fdfee5461"
+      "checksum": "097dd57dab04531c80639ece54d92735"
+    },
+    "tract_data.feather": {
+      "checksum": "4e416b70581796e6c2b31dcfa6bcc4f8"
     }
   }
 }

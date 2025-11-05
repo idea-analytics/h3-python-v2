@@ -1,9 +1,9 @@
 {
-  "total_hexes": 49791,
-  "total_population": 13968611.0,
+  "total_hexes": 6451,
+  "total_population": 2428007.0,
   "score_min": 0.0,
-  "score_max": 0.011393729888905668,
-  "score_mean": 0.000335276809945899,
-  "center_lat": 30.91971183930139,
-  "center_lon": -99.71127034586092
+  "score_max": 0.011359005500637573,
+  "score_mean": 0.00044779115669924316,
+  "center_lat": 30.702112529531913,
+  "center_lon": -100.0591412116209
 }

@@ -122,6 +122,29 @@ def load_hex_data_file(file_path='hex_data.feather'):
         print(f"Error loading hex data: {e}")
         return None
 
+def load_tract_data_file(file_path='tract_data.feather'):
+    """Load tract outline data from feather file"""
+    try:
+        if not os.path.exists(file_path):
+            print(f"Warning: {file_path} not found")
+            return None
+        
+        df = pd.read_feather(file_path)
+        print(f"Loaded {len(df)} tract outlines from {file_path}")
+        
+        # Validate required columns for tract data
+        required_cols = ['GEOID', 'geometry_coords']
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            print(f"Warning: Missing tract columns {missing_cols}")
+            return None
+        
+        return df
+        
+    except Exception as e:
+        print(f"Error loading tract data: {e}")
+        return None
+
 def create_sample_data():
     """Create sample hex data for testing when real data is not available"""
     print("Creating sample hex data for testing...")
@@ -251,8 +274,8 @@ def create_color_legend_html(summary):
 # -----------------------------
 # Map Creation
 # -----------------------------
-def create_folium_map(df_filtered, summary, zoom=DEFAULT_ZOOM):
-    """Create Folium map with hex polygons using actual H3 boundaries"""
+def create_folium_map(df_filtered, tract_data, summary, zoom=DEFAULT_ZOOM, show_hexes=True, show_tracts=False):
+    """Create Folium map with hex polygons and optional tract outlines"""
     # Map center
     center_lat = summary.get('center_lat', DEFAULT_CENTER_LAT)
     center_lng = summary.get('center_lon', DEFAULT_CENTER_LON)
@@ -264,8 +287,35 @@ def create_folium_map(df_filtered, summary, zoom=DEFAULT_ZOOM):
         tiles='CartoDB positron'
     )
     
-    # Add hexes if data available
-    if df_filtered is not None and len(df_filtered) > 0:
+    # Add tract outlines if requested and available
+    if show_tracts and tract_data is not None and len(tract_data) > 0:
+        print(f"Adding {len(tract_data)} tract outlines to map")
+        for _, row in tract_data.iterrows():
+            try:
+                # Parse the geometry coordinates
+                import json
+                coords = json.loads(row['geometry_coords'])
+                
+                folium.Polygon(
+                    locations=coords,
+                    color='blue',
+                    weight=1,
+                    fill=False,
+                    opacity=0.7,
+                    popup=folium.Popup(
+                        f"<div style='font-family:Arial;'>"
+                        f"<b>Census Tract:</b> {row['GEOID']}<br>"
+                        f"<b>Population:</b> {row.get('population', 'N/A'):,}<br>"
+                        f"</div>",
+                        max_width=250
+                    )
+                ).add_to(m)
+            except Exception as e:
+                print(f"Error adding tract {row.get('GEOID', 'unknown')}: {e}")
+                continue
+    
+    # Add hexes if requested and available
+    if show_hexes and df_filtered is not None and len(df_filtered) > 0:
         # Create colormap based on population
         min_pop = df_filtered['population'].min()
         max_pop = df_filtered['population'].max()
@@ -329,10 +379,12 @@ app_ui = ui.page_fluid(
         
         ui.div(
             ui.row(
-                ui.column(3, ui.input_action_button("refresh", "Refresh Map", class_="btn-primary btn-block")),
-                ui.column(3, ui.input_checkbox("fast_mode", "Fast Loading Mode", value=False)),
-                ui.column(3, ui.input_numeric("zoom_level", "Zoom Level", value=DEFAULT_ZOOM, min=1, max=12, step=1)),
-                ui.column(3, ui.input_checkbox("show_stats", "Show Statistics", value=True))
+                ui.column(2, ui.input_action_button("refresh", "Refresh Map", class_="btn-primary btn-block")),
+                ui.column(2, ui.input_checkbox("fast_mode", "Fast Loading Mode", value=False)),
+                ui.column(2, ui.input_numeric("zoom_level", "Zoom Level", value=DEFAULT_ZOOM, min=1, max=12, step=1)),
+                ui.column(2, ui.input_checkbox("show_stats", "Show Statistics", value=True)),
+                ui.column(2, ui.input_checkbox("show_hexes", "Show Hexes", value=True)),
+                ui.column(2, ui.input_checkbox("show_tracts", "Show Census Tracts", value=False))
             ),
             style="margin-bottom:20px"
         ),
@@ -359,6 +411,7 @@ app_ui = ui.page_fluid(
 def server(input, output, session):
     # Reactive values
     hex_data = reactive.Value(None)
+    tract_data = reactive.Value(None)
     summary_data = reactive.Value({})
     loading_message = reactive.Value("Initializing...")
     filtered_count = reactive.Value(0)
@@ -366,21 +419,29 @@ def server(input, output, session):
     # Initialize data on startup
     @reactive.Effect
     def load_initial_data():
-        loading_message.set("Loading hex data...")
+        loading_message.set("Loading data...")
         
-        # Try to load real data first
-        df = load_hex_data_file('hex_data.feather')
+        # Try to load hex data first
+        df_hex = load_hex_data_file('hex_data.feather')
         
         # Fall back to sample data if real data not available
-        if df is None:
-            loading_message.set("Real data not found, creating sample data...")
-            df = create_sample_data()
+        if df_hex is None:
+            loading_message.set("Real hex data not found, creating sample data...")
+            df_hex = create_sample_data()
         
-        if df is not None and len(df) > 0:
-            hex_data.set(df)
-            summary = calculate_summary_stats(df)
+        # Try to load tract data
+        df_tract = load_tract_data_file('tract_data.feather')
+        
+        if df_hex is not None and len(df_hex) > 0:
+            hex_data.set(df_hex)
+            summary = calculate_summary_stats(df_hex)
             summary_data.set(summary)
-            loading_message.set(f"✅ Loaded {len(df):,} hexes successfully")
+            
+            if df_tract is not None:
+                tract_data.set(df_tract)
+                loading_message.set(f"✅ Loaded {len(df_hex):,} hexes and {len(df_tract):,} tract outlines")
+            else:
+                loading_message.set(f"✅ Loaded {len(df_hex):,} hexes successfully (no tract data)")
         else:
             loading_message.set("❌ Failed to load data")
     
@@ -463,18 +524,26 @@ def server(input, output, session):
     @render.ui
     def map_plot():
         try:
-            df_filtered = get_filtered_data()
+            df_filtered = get_filtered_data() if input.show_hexes() else None
+            tract_df = tract_data.get() if input.show_tracts() else None
             summary = summary_data.get()
             zoom = input.zoom_level()
             
-            if summary.get('total_hexes', 0) == 0:
+            if summary.get('total_hexes', 0) == 0 and not input.show_tracts():
                 return ui.div(
                     ui.p("No data available to display", style="text-align:center;color:#666;"),
                     style="padding:50px;border:1px solid #ddd;border-radius:5px;"
                 )
             
             # Create map
-            m = create_folium_map(df_filtered, summary, zoom)
+            m = create_folium_map(
+                df_filtered, 
+                tract_df, 
+                summary, 
+                zoom, 
+                show_hexes=input.show_hexes(), 
+                show_tracts=input.show_tracts()
+            )
             
             # Return map HTML
             map_html = m._repr_html_()
