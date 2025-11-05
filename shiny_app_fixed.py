@@ -445,11 +445,34 @@ def server(input, output, session):
         else:
             loading_message.set("❌ Failed to load data")
     
-    # Refresh data when refresh button is clicked
+    # Refresh data when refresh button is clicked - call the effect trigger
     @reactive.Effect
     @reactive.event(input.refresh)
     def refresh_data():
-        load_initial_data()
+        # Force reload by updating a reactive value that triggers load_initial_data
+        loading_message.set("Refreshing data...")
+        
+        # Manually reload data (same logic as load_initial_data)
+        df_hex = load_hex_data_file('hex_data.feather')
+        
+        if df_hex is None:
+            loading_message.set("Real hex data not found, creating sample data...")
+            df_hex = create_sample_data()
+        
+        df_tract = load_tract_data_file('tract_data.feather')
+        
+        if df_hex is not None and len(df_hex) > 0:
+            hex_data.set(df_hex)
+            summary = calculate_summary_stats(df_hex)
+            summary_data.set(summary)
+            
+            if df_tract is not None:
+                tract_data.set(df_tract)
+                loading_message.set(f"✅ Refreshed {len(df_hex):,} hexes and {len(df_tract):,} tract outlines")
+            else:
+                loading_message.set(f"✅ Refreshed {len(df_hex):,} hexes successfully (no tract data)")
+        else:
+            loading_message.set("❌ Failed to refresh data")
     
     # Calculate filtered data based on zoom and viewport
     @reactive.Calc
