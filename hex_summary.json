@@ -1,9 +1,15 @@
 {
   "total_hexes": 25936,
-  "total_population": 21747284.35715234,
+  "total_population": 21747310,
   "score_min": 0.0,
   "score_max": 0.013117478085673717,
   "score_mean": 0.0010084126958651786,
   "center_lat": 31.010804523511606,
-  "center_lon": -97.26304139226889
+  "center_lon": -97.26304139226889,
+  "income_hexes": 25678,
+  "median_income_min": 8718,
+  "median_income_max": 245513,
+  "median_income_mean": 97081,
+  "target_hexes": 7524,
+  "target_population": 7769245
 }

@@ -341,12 +341,11 @@ def create_folium_map(df_filtered, tract_data, center_lat, center_lng, zoom, sho
                     fill_opacity=0.6,
                     popup=folium.Popup(
                         f"<div style='font-family:Arial;'>"
-                        f"<b>Hex ID:</b> {row.get('hex_id', 'N/A')}<br>"
-                        f"<b>Population:</b> {row['population']:,}<br>"
-                        f"<b>Density Score:</b> {row.get('score',0):.4f}<br>"
-                        f"<b>Location:</b> ({row['lat']:.4f}, {row['lng']:.4f})"
+                        f"<b>Population:</b> {int(row['population']):,}<br>"
+                        f"<b>Median Income:</b> ${int(row.get('median_income', 0)):,}<br>"
+                        f"<b>Income Level:</b> {row.get('target_status', 'Unknown')}"
                         f"</div>",
-                        max_width=300
+                        max_width=250
                     )
                 ).add_to(m)
             except Exception as e:
