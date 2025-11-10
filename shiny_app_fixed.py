@@ -30,18 +30,6 @@ DEFAULT_ZOOM = 6
 MAX_HEXES_FAST_MODE = 5000
 HEX_RADIUS = 0.02
 
-# City navigation coordinates and zoom levels
-CITY_LOCATIONS = {
-    "dallas": {"lat": 32.7767, "lng": -96.7970, "zoom": 9, "name": "Dallas-Fort Worth"},
-    "houston": {"lat": 29.7604, "lng": -95.3698, "zoom": 9, "name": "Houston"},
-    "austin": {"lat": 30.2672, "lng": -97.7431, "zoom": 9, "name": "Austin"},
-    "san_antonio": {"lat": 29.4241, "lng": -98.4936, "zoom": 9, "name": "San Antonio"},
-    "el_paso": {"lat": 31.7619, "lng": -106.4850, "zoom": 9, "name": "El Paso"},
-    "corpus": {"lat": 27.8006, "lng": -97.3964, "zoom": 9, "name": "Corpus Christi"},
-    "lubbock": {"lat": 33.5779, "lng": -101.8552, "zoom": 9, "name": "Lubbock"},
-    "midland": {"lat": 31.8457, "lng": -102.3676, "zoom": 9, "name": "Midland-Odessa"}
-}
-
 # -----------------------------
 # Utility Functions
 # -----------------------------
@@ -395,25 +383,7 @@ app_ui = ui.page_fluid(
                 ui.column(2, ui.input_checkbox("show_hexes", "Show Hexes", value=True)),
                 ui.column(2, ui.input_checkbox("show_tracts", "Show Census Tracts", value=False))
             ),
-            style="margin-bottom:15px"
-        ),
-        
-        # City Navigation Buttons
-        ui.div(
-            ui.h5("🏙️ Quick Navigation", style="margin-bottom:10px;color:#2c3e50;"),
-            ui.row(
-                ui.column(1, ui.input_action_button("nav_dallas", "Dallas", class_="btn-outline-secondary btn-sm btn-block")),
-                ui.column(1, ui.input_action_button("nav_houston", "Houston", class_="btn-outline-secondary btn-sm btn-block")),
-                ui.column(1, ui.input_action_button("nav_austin", "Austin", class_="btn-outline-secondary btn-sm btn-block")),
-                ui.column(1, ui.input_action_button("nav_san_antonio", "San Antonio", class_="btn-outline-secondary btn-sm btn-block")),
-                ui.column(1, ui.input_action_button("nav_el_paso", "El Paso", class_="btn-outline-secondary btn-sm btn-block")),
-                ui.column(1, ui.input_action_button("nav_corpus", "Corpus Christi", class_="btn-outline-secondary btn-sm btn-block")),
-                ui.column(1, ui.input_action_button("nav_lubbock", "Lubbock", class_="btn-outline-secondary btn-sm btn-block")),
-                ui.column(1, ui.input_action_button("nav_midland", "Midland", class_="btn-outline-secondary btn-sm btn-block")),
-                ui.column(2, ui.input_action_button("nav_reset", "🔄 Reset View", class_="btn-secondary btn-sm btn-block")),
-                ui.column(2, ui.input_action_button("nav_fit_all", "🌎 Fit All Data", class_="btn-info btn-sm btn-block"))
-            ),
-            style="margin-bottom:20px;padding:15px;background-color:#f8f9fa;border-radius:5px"
+            style="margin-bottom:20px"
         ),
         
         # Summary statistics
@@ -442,95 +412,6 @@ def server(input, output, session):
     summary_data = reactive.Value({})
     loading_message = reactive.Value("Initializing...")
     filtered_count = reactive.Value(0)
-    
-    # Navigation state
-    current_center = reactive.Value({"lat": DEFAULT_CENTER_LAT, "lng": DEFAULT_CENTER_LON})
-    current_zoom = reactive.Value(DEFAULT_ZOOM)
-    
-    # City navigation effects
-    @reactive.Effect
-    @reactive.event(input.nav_dallas)
-    def navigate_to_dallas():
-        city = CITY_LOCATIONS["dallas"]
-        current_center.set({"lat": city["lat"], "lng": city["lng"]})
-        current_zoom.set(city["zoom"])
-        loading_message.set(f"📍 Navigated to {city['name']}")
-    
-    @reactive.Effect
-    @reactive.event(input.nav_houston)
-    def navigate_to_houston():
-        city = CITY_LOCATIONS["houston"]
-        current_center.set({"lat": city["lat"], "lng": city["lng"]})
-        current_zoom.set(city["zoom"])
-        loading_message.set(f"📍 Navigated to {city['name']}")
-    
-    @reactive.Effect
-    @reactive.event(input.nav_austin)
-    def navigate_to_austin():
-        city = CITY_LOCATIONS["austin"]
-        current_center.set({"lat": city["lat"], "lng": city["lng"]})
-        current_zoom.set(city["zoom"])
-        loading_message.set(f"📍 Navigated to {city['name']}")
-    
-    @reactive.Effect
-    @reactive.event(input.nav_san_antonio)
-    def navigate_to_san_antonio():
-        city = CITY_LOCATIONS["san_antonio"]
-        current_center.set({"lat": city["lat"], "lng": city["lng"]})
-        current_zoom.set(city["zoom"])
-        loading_message.set(f"📍 Navigated to {city['name']}")
-    
-    @reactive.Effect
-    @reactive.event(input.nav_el_paso)
-    def navigate_to_el_paso():
-        city = CITY_LOCATIONS["el_paso"]
-        current_center.set({"lat": city["lat"], "lng": city["lng"]})
-        current_zoom.set(city["zoom"])
-        loading_message.set(f"📍 Navigated to {city['name']}")
-    
-    @reactive.Effect
-    @reactive.event(input.nav_corpus)
-    def navigate_to_corpus():
-        city = CITY_LOCATIONS["corpus"]
-        current_center.set({"lat": city["lat"], "lng": city["lng"]})
-        current_zoom.set(city["zoom"])
-        loading_message.set(f"📍 Navigated to {city['name']}")
-    
-    @reactive.Effect
-    @reactive.event(input.nav_lubbock)
-    def navigate_to_lubbock():
-        city = CITY_LOCATIONS["lubbock"]
-        current_center.set({"lat": city["lat"], "lng": city["lng"]})
-        current_zoom.set(city["zoom"])
-        loading_message.set(f"📍 Navigated to {city['name']}")
-    
-    @reactive.Effect
-    @reactive.event(input.nav_midland)
-    def navigate_to_midland():
-        city = CITY_LOCATIONS["midland"]
-        current_center.set({"lat": city["lat"], "lng": city["lng"]})
-        current_zoom.set(city["zoom"])
-        loading_message.set(f"📍 Navigated to {city['name']}")
-    
-    @reactive.Effect
-    @reactive.event(input.nav_reset)
-    def reset_view():
-        current_center.set({"lat": DEFAULT_CENTER_LAT, "lng": DEFAULT_CENTER_LON})
-        current_zoom.set(DEFAULT_ZOOM)
-        loading_message.set("🔄 Reset to default view")
-    
-    @reactive.Effect
-    @reactive.event(input.nav_fit_all)
-    def fit_all_data():
-        summary = summary_data.get()
-        if summary and summary.get('total_hexes', 0) > 0:
-            center_lat = summary.get('center_lat', DEFAULT_CENTER_LAT)
-            center_lng = summary.get('center_lon', DEFAULT_CENTER_LON)
-            current_center.set({"lat": center_lat, "lng": center_lng})
-            current_zoom.set(6)  # Zoom level to see all data
-            loading_message.set("🌎 Fitted view to all data")
-        else:
-            loading_message.set("No data to fit view to")
     
     # Initialize data on startup
     @reactive.Effect
@@ -598,23 +479,17 @@ def server(input, output, session):
             filtered_count.set(0)
             return None
         
-        # Use navigation state if available, otherwise fall back to manual zoom input
-        nav_center = current_center.get()
-        nav_zoom = current_zoom.get()
-        
-        # Allow manual zoom override
-        manual_zoom = input.zoom_level()
-        actual_zoom = manual_zoom if manual_zoom != nav_zoom else nav_zoom
-        
+        zoom = input.zoom_level()
         fast_mode = input.fast_mode()
+        summary = summary_data.get()
         
-        # Get viewport bounds using current navigation center
-        center_lat = nav_center["lat"]
-        center_lng = nav_center["lng"]
-        bounds = get_zoom_level_bounds(center_lat, center_lng, actual_zoom)
+        # Get viewport bounds
+        center_lat = summary.get('center_lat', DEFAULT_CENTER_LAT)
+        center_lng = summary.get('center_lon', DEFAULT_CENTER_LON)
+        bounds = get_zoom_level_bounds(center_lat, center_lng, zoom)
         
         # Filter by viewport
-        df_filtered = filter_hexes_by_viewport(df, bounds, actual_zoom)
+        df_filtered = filter_hexes_by_viewport(df, bounds, zoom)
         
         # Apply fast mode sampling if needed
         if fast_mode and len(df_filtered) > MAX_HEXES_FAST_MODE:
@@ -672,14 +547,7 @@ def server(input, output, session):
             df_filtered = get_filtered_data() if input.show_hexes() else None
             tract_df = tract_data.get() if input.show_tracts() else None
             summary = summary_data.get()
-            
-            # Use navigation state for map center and zoom
-            nav_center = current_center.get()
-            nav_zoom = current_zoom.get()
-            
-            # Allow manual zoom override
-            manual_zoom = input.zoom_level()
-            actual_zoom = manual_zoom if manual_zoom != nav_zoom else nav_zoom
+            zoom = input.zoom_level()
             
             if summary.get('total_hexes', 0) == 0 and not input.show_tracts():
                 return ui.div(
@@ -687,13 +555,17 @@ def server(input, output, session):
                     style="padding:50px;border:1px solid #ddd;border-radius:5px;"
                 )
             
-            # Create map with navigation center
+            # Map center from summary
+            center_lat = summary.get('center_lat', DEFAULT_CENTER_LAT)
+            center_lng = summary.get('center_lon', DEFAULT_CENTER_LON)
+            
+            # Create map
             m = create_folium_map(
                 df_filtered, 
                 tract_df, 
-                nav_center["lat"],
-                nav_center["lng"],
-                actual_zoom, 
+                center_lat,
+                center_lng,
+                zoom, 
                 show_hexes=input.show_hexes(), 
                 show_tracts=input.show_tracts()
             )
