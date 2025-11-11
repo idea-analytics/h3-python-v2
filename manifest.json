@@ -3,7 +3,7 @@
   "locale": "English_United States.1252",
   "metadata": {
     "appmode": "python-shiny",
-    "entrypoint": "shiny_app_fixed"
+    "entrypoint": "shiny_app_updated"
   },
   "python": {
     "version": "3.13.5",
@@ -15,19 +15,31 @@
   },
   "files": {
     "requirements.txt": {
-      "checksum": "2bf493f6485944a8af7164429b02cf51"
+      "checksum": "15d2bffaa950224e153593e63f12dec2"
+    },
+    "county_region_lookup.csv": {
+      "checksum": "2717f989270d3324d723e3838caacb62"
     },
     "hex_data.feather": {
-      "checksum": "3b8cce1e4a0da029b472fae76499018d"
+      "checksum": "1b0e92b8fbacc2615e8c964d046a3721"
     },
-    "hex_summary.json": {
-      "checksum": "867f9f2ae949f8f30f71b5de582e86f8"
+    "school_hex_codes.csv": {
+      "checksum": "1f75487927839e83caed4bb9514123d8"
     },
-    "shiny_app_fixed.py": {
-      "checksum": "097dd57dab04531c80639ece54d92735"
+    "sf_counties_2022.feather": {
+      "checksum": "7a4e1a98786932c1fb45a2c10cb260fe"
+    },
+    "sf_schools_idea_2024.feather": {
+      "checksum": "ad48209d6acf17de0cf9852bcea72bde"
+    },
+    "sf_states_2022.feather": {
+      "checksum": "97d1dce56e290cc843b45aec16052db0"
+    },
+    "shiny_app_updated.py": {
+      "checksum": "dd7a9656d42218d2045b80fc0e73dda4"
     },
     "tract_data.feather": {
-      "checksum": "c834c136bc133ef6a7851aef8d0208b6"
+      "checksum": "848b91c5abe7e8d8232086ccee8aa91b"
     }
   }
 }

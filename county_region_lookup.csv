@@ -1,0 +1,22 @@
+state_fp,county_fp,st_usps,state,region_id,region,county,in_operation
+48,453,TX,Texas,1,Austin,Travis County,1
+48,209,TX,Texas,1,Austin,Hays County,1
+48,491,TX,Texas,1,Austin,Williamson County,1
+48,355,TX,Texas,,Coastal Bend,Nueces County,0
+48,141,TX,Texas,5,El Paso,El Paso County,1
+48,201,TX,Texas,11,Greater Houston Area,Harris County,1
+48,329,TX,Texas,10,Permian Basin,Midland County,1
+48,135,TX,Texas,10,Permian Basin,Ector County,1
+48,061,TX,Texas,7,Rio Grande Valley,Cameron County,1
+48,215,TX,Texas,7,Rio Grande Valley,Hidalgo County,1
+48,427,TX,Texas,7,Rio Grande Valley,Starr County,1
+48,029,TX,Texas,2,San Antonio,Bexar County,1
+48,439,TX,Texas,9,Tarrant County,Tarrant County,1
+48,113,TX,Texas,9,Tarrant County,Dallas County,1
+39,061,OH,Ohio,14,Cincinnati,Hamilton County,1
+12,031,FL,Florida,15,Jacksonville,Duval County,1
+12,057,FL,Florida,12,Tampa,Hillsborough County,1
+12,105,FL,Florida,12,Tampa,Polk County,1
+12,095,FL,Florida,,Orlando,Orange County,0
+22,033,LA,Louisiana,6,Southern Louisiana,East Baton Rouge Parish,1
+22,071,LA,Louisiana,6,Southern Louisiana,Orleans Parish,0
