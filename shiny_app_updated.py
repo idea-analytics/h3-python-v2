@@ -28,7 +28,7 @@ DEFAULT_CENTER_LAT = 30.0
 DEFAULT_CENTER_LON = -99.0
 DEFAULT_ZOOM = 6
 MAX_HEXES_FAST_MODE = 5000
-HEX_RADIUS = 0.02
+HEX_RADIUS = 0.002
 
 # -----------------------------
 # Utility Functions
