@@ -7,6 +7,7 @@ import math
 import json
 import time
 import pandas as pd
+import geopandas as gpd
 from shiny import App, ui, render, reactive
 import folium
 import branca.colormap as cm
@@ -145,6 +146,91 @@ def load_tract_data_file(file_path='tract_data.feather'):
         print(f"Error loading tract data: {e}")
         return None
 
+def load_idea_schools_file(file_path='sf_schools_idea_2024.feather'):
+    """Load IDEA school locations from feather file"""
+    try:
+        if not os.path.exists(file_path):
+            print(f"Warning: {file_path} not found")
+            return None
+        
+        gdf = gpd.read_feather(file_path)
+        print(f"Loaded {len(gdf)} IDEA schools from {file_path}")
+        
+        # Extract coordinates from geometry
+        if 'geometry' in gdf.columns:
+            gdf['lat'] = gdf.geometry.y
+            gdf['lng'] = gdf.geometry.x
+        
+        return gdf
+        
+    except Exception as e:
+        print(f"Error loading IDEA schools data: {e}")
+        return None
+
+def load_counties_file(file_path='sf_counties_2022.feather'):
+    """Load county boundaries from feather file"""
+    try:
+        if not os.path.exists(file_path):
+            print(f"Warning: {file_path} not found")
+            return None
+        
+        gdf = gpd.read_feather(file_path)
+        print(f"Loaded {len(gdf)} counties from {file_path}")
+        
+        return gdf
+        
+    except Exception as e:
+        print(f"Error loading counties data: {e}")
+        return None
+
+def load_states_file(file_path='sf_states_2022.feather'):
+    """Load state boundaries from feather file"""
+    try:
+        if not os.path.exists(file_path):
+            print(f"Warning: {file_path} not found")
+            return None
+        
+        gdf = gpd.read_feather(file_path)
+        print(f"Loaded {len(gdf)} states from {file_path}")
+        
+        return gdf
+        
+    except Exception as e:
+        print(f"Error loading states data: {e}")
+        return None
+
+def load_school_hex_codes_file(file_path='school_hex_codes.csv'):
+    """Load school hex color codes from CSV file"""
+    try:
+        if not os.path.exists(file_path):
+            print(f"Warning: {file_path} not found")
+            return None
+        
+        df = pd.read_csv(file_path)
+        print(f"Loaded {len(df)} school color codes from {file_path}")
+        
+        return df
+        
+    except Exception as e:
+        print(f"Error loading school hex codes: {e}")
+        return None
+
+def load_county_region_lookup_file(file_path='county_region_lookup.csv'):
+    """Load county-region lookup from CSV file"""
+    try:
+        if not os.path.exists(file_path):
+            print(f"Warning: {file_path} not found")
+            return None
+        
+        df = pd.read_csv(file_path)
+        print(f"Loaded {len(df)} county-region mappings from {file_path}")
+        
+        return df
+        
+    except Exception as e:
+        print(f"Error loading county-region lookup: {e}")
+        return None
+
 def create_sample_data():
     """Create sample hex data for testing when real data is not available"""
     print("Creating sample hex data for testing...")
@@ -274,8 +360,10 @@ def create_color_legend_html(summary):
 # -----------------------------
 # Map Creation
 # -----------------------------
-def create_folium_map(df_filtered, tract_data, center_lat, center_lng, zoom, show_hexes=True, show_tracts=False):
-    """Create Folium map with hex polygons and optional tract outlines"""
+def create_folium_map(df_filtered, tract_data, center_lat, center_lng, zoom, show_hexes=True, show_tracts=False,
+                      df_schools=None, df_counties=None, df_states=None, school_colors=None,
+                      show_schools=False, show_counties=False, show_states=False):
+    """Create Folium map with hex polygons and optional additional layers"""
     
     # Create base map with specified center and zoom
     m = folium.Map(
@@ -283,6 +371,56 @@ def create_folium_map(df_filtered, tract_data, center_lat, center_lng, zoom, sho
         zoom_start=zoom, 
         tiles='CartoDB positron'
     )
+    
+    # Add state boundaries if requested and available
+    if show_states and df_states is not None and len(df_states) > 0:
+        print(f"Adding {len(df_states)} state boundaries to map")
+        for _, row in df_states.iterrows():
+            try:
+                if hasattr(row.geometry, 'boundary'):
+                    coords = []
+                    if row.geometry.geom_type == 'Polygon':
+                        coords = [[lat, lng] for lng, lat in row.geometry.exterior.coords]
+                    elif row.geometry.geom_type == 'MultiPolygon':
+                        for poly in row.geometry.geoms:
+                            coords.extend([[lat, lng] for lng, lat in poly.exterior.coords])
+                    
+                    if coords:
+                        folium.Polygon(
+                            locations=coords,
+                            color='purple',
+                            weight=2,
+                            fill=False,
+                            opacity=0.8,
+                            popup=f"<b>State:</b> {row.get('NAME', 'Unknown')}"
+                        ).add_to(m)
+            except Exception as e:
+                print(f"Error adding state boundary: {e}")
+    
+    # Add county boundaries if requested and available
+    if show_counties and df_counties is not None and len(df_counties) > 0:
+        print(f"Adding {len(df_counties)} county boundaries to map")
+        for _, row in df_counties.iterrows():
+            try:
+                if hasattr(row.geometry, 'boundary'):
+                    coords = []
+                    if row.geometry.geom_type == 'Polygon':
+                        coords = [[lat, lng] for lng, lat in row.geometry.exterior.coords]
+                    elif row.geometry.geom_type == 'MultiPolygon':
+                        for poly in row.geometry.geoms:
+                            coords.extend([[lat, lng] for lng, lat in poly.exterior.coords])
+                    
+                    if coords:
+                        folium.Polygon(
+                            locations=coords,
+                            color='gray',
+                            weight=1,
+                            fill=False,
+                            opacity=0.6,
+                            popup=f"<b>County:</b> {row.get('NAMELSAD', 'Unknown')}"
+                        ).add_to(m)
+            except Exception as e:
+                print(f"Error adding county boundary: {e}")
     
     # Add tract outlines if requested and available
     if show_tracts and tract_data is not None and len(tract_data) > 0:
@@ -352,6 +490,37 @@ def create_folium_map(df_filtered, tract_data, center_lat, center_lng, zoom, sho
                 print(f"Error adding hex {row.get('hex_id', 'unknown')}: {e}")
                 continue
     
+    # Add IDEA school markers if requested and available
+    if show_schools and df_schools is not None and len(df_schools) > 0:
+        print(f"Adding {len(df_schools)} IDEA school markers to map")
+        for _, row in df_schools.iterrows():
+            try:
+                # Get school color from school_colors if available
+                school_color = 'red'  # default
+                if school_colors is not None and 'hex_code' in row:
+                    school_color = row.get('hex_code', 'red')
+                
+                folium.CircleMarker(
+                    location=[row['lat'], row['lng']],
+                    radius=8,
+                    popup=folium.Popup(
+                        f"<div style='font-family:Arial;'>"
+                        f"<b>School:</b> {row.get('SchoolShortName', 'Unknown')}<br>"
+                        f"<b>Status:</b> {row.get('SiteStatus', 'Unknown')}<br>"
+                        f"<b>Region:</b> {row.get('Region', 'Unknown')}"
+                        f"</div>",
+                        max_width=250
+                    ),
+                    color='white',
+                    weight=2,
+                    fill=True,
+                    fillColor=school_color,
+                    fillOpacity=0.8
+                ).add_to(m)
+            except Exception as e:
+                print(f"Error adding school marker: {e}")
+                continue
+    
     return m
 
 # -----------------------------
@@ -382,6 +551,12 @@ app_ui = ui.page_fluid(
                 ui.column(2, ui.input_checkbox("show_hexes", "Show Hexes", value=True)),
                 ui.column(2, ui.input_checkbox("show_tracts", "Show Census Tracts", value=False))
             ),
+            ui.row(
+                ui.column(3, ui.input_checkbox("show_schools", "Show IDEA Schools", value=True)),
+                ui.column(3, ui.input_checkbox("show_counties", "Show Counties", value=False)),
+                ui.column(3, ui.input_checkbox("show_states", "Show States", value=False)),
+                ui.column(3)  # Empty column for spacing
+            ),
             style="margin-bottom:20px"
         ),
         
@@ -408,6 +583,11 @@ def server(input, output, session):
     # Reactive values
     hex_data = reactive.Value(None)
     tract_data = reactive.Value(None)
+    schools_data = reactive.Value(None)
+    counties_data = reactive.Value(None)
+    states_data = reactive.Value(None)
+    school_colors_data = reactive.Value(None)
+    county_lookup_data = reactive.Value(None)
     summary_data = reactive.Value({})
     loading_message = reactive.Value("Initializing...")
     filtered_count = reactive.Value(0)
@@ -428,18 +608,37 @@ def server(input, output, session):
         # Try to load tract data
         df_tract = load_tract_data_file('tract_data.feather')
         
+        # Load additional data files
+        df_schools = load_idea_schools_file('sf_schools_idea_2024.feather')
+        df_counties = load_counties_file('sf_counties_2022.feather') 
+        df_states = load_states_file('sf_states_2022.feather')
+        df_school_colors = load_school_hex_codes_file('school_hex_codes.csv')
+        df_county_lookup = load_county_region_lookup_file('county_region_lookup.csv')
+        
+        # Store all data
+        hex_data.set(df_hex)
+        tract_data.set(df_tract)
+        schools_data.set(df_schools)
+        counties_data.set(df_counties)
+        states_data.set(df_states)
+        school_colors_data.set(df_school_colors)
+        county_lookup_data.set(df_county_lookup)
+        
         if df_hex is not None and len(df_hex) > 0:
-            hex_data.set(df_hex)
             summary = calculate_summary_stats(df_hex)
             summary_data.set(summary)
             
-            if df_tract is not None:
-                tract_data.set(df_tract)
-                loading_message.set(f"✅ Loaded {len(df_hex):,} hexes and {len(df_tract):,} tract outlines")
-            else:
-                loading_message.set(f"✅ Loaded {len(df_hex):,} hexes successfully (no tract data)")
+            # Count loaded datasets
+            datasets_loaded = []
+            if df_hex is not None: datasets_loaded.append(f"{len(df_hex):,} hexes")
+            if df_tract is not None: datasets_loaded.append(f"{len(df_tract):,} tracts")
+            if df_schools is not None: datasets_loaded.append(f"{len(df_schools):,} schools")
+            if df_counties is not None: datasets_loaded.append(f"{len(df_counties):,} counties")
+            if df_states is not None: datasets_loaded.append(f"{len(df_states):,} states")
+            
+            loading_message.set(f"✅ Loaded: {', '.join(datasets_loaded)}")
         else:
-            loading_message.set("❌ Failed to load data")
+            loading_message.set("❌ Failed to load hex data")
     
     # Refresh data when refresh button is clicked - call the effect trigger
     @reactive.Effect
@@ -545,10 +744,14 @@ def server(input, output, session):
         try:
             df_filtered = get_filtered_data() if input.show_hexes() else None
             tract_df = tract_data.get() if input.show_tracts() else None
+            schools_df = schools_data.get() if input.show_schools() else None
+            counties_df = counties_data.get() if input.show_counties() else None
+            states_df = states_data.get() if input.show_states() else None
+            school_colors_df = school_colors_data.get()
             summary = summary_data.get()
             zoom = input.zoom_level()
             
-            if summary.get('total_hexes', 0) == 0 and not input.show_tracts():
+            if summary.get('total_hexes', 0) == 0 and not any([input.show_tracts(), input.show_schools(), input.show_counties(), input.show_states()]):
                 return ui.div(
                     ui.p("No data available to display", style="text-align:center;color:#666;"),
                     style="padding:50px;border:1px solid #ddd;border-radius:5px;"
@@ -558,7 +761,7 @@ def server(input, output, session):
             center_lat = summary.get('center_lat', DEFAULT_CENTER_LAT)
             center_lng = summary.get('center_lon', DEFAULT_CENTER_LON)
             
-            # Create map
+            # Create map with all data sources
             m = create_folium_map(
                 df_filtered, 
                 tract_df, 
@@ -566,7 +769,14 @@ def server(input, output, session):
                 center_lng,
                 zoom, 
                 show_hexes=input.show_hexes(), 
-                show_tracts=input.show_tracts()
+                show_tracts=input.show_tracts(),
+                df_schools=schools_df,
+                df_counties=counties_df, 
+                df_states=states_df,
+                school_colors=school_colors_df,
+                show_schools=input.show_schools(),
+                show_counties=input.show_counties(),
+                show_states=input.show_states()
             )
             
             # Return map HTML
