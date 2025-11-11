@@ -38,11 +38,11 @@ def get_h3_hex_boundary(hex_id):
     """Get actual H3 hex boundary coordinates (compatible with both H3 v3 and v4+)"""
     try:
         # Try new API first (H3 v4+)
-        boundary = h3.cell_to_boundary(hex_id)
+        boundary = h3.cell_to_boundary(hex_id, 8)
     except (AttributeError, NameError):
         try:
             # Fall back to old API (H3 v3)
-            boundary = h3.h3_to_geo_boundary(hex_id)
+            boundary = h3.h3_to_geo_boundary(hex_id, )
         except (AttributeError, NameError):
             # If H3 not available, create approximate hex
             return hex_corners_fallback(0, 0, HEX_RADIUS)
