@@ -7,7 +7,6 @@ import math
 import json
 import time
 import pandas as pd
-import geopandas as gpd
 from shiny import App, ui, render, reactive
 import folium
 import branca.colormap as cm
@@ -29,41 +28,26 @@ DEFAULT_CENTER_LAT = 30.0
 DEFAULT_CENTER_LON = -99.0
 DEFAULT_ZOOM = 6
 MAX_HEXES_FAST_MODE = 5000
-HEX_RADIUS = 0.005
+HEX_RADIUS = 0.02
 
 # -----------------------------
 # Utility Functions
 # -----------------------------
-def get_h3_hex_boundary(hex_id, use_h3=False):
-    """
-    Get hex boundary coordinates.
-    Defaults to manual flat-geometry hexes for consistent visual alignment.
-    If use_h3=True and H3 is available, uses H3's geodesic boundaries.
-    """
-    # Convert hex ID to approximate centroid
+def get_h3_hex_boundary(hex_id):
+    """Get actual H3 hex boundary coordinates (compatible with both H3 v3 and v4+)"""
     try:
-        lat, lng = h3.cell_to_latlng(hex_id)
-    except Exception:
-        lat, lng = (0, 0)
-
-    # Default: manual hex corners
-    boundary = hex_corners_fallback(lat, lng, HEX_RADIUS)
-
-    # Optionally try real H3 boundary
-    if use_h3:
+        # Try new API first (H3 v4+)
+        boundary = h3.cell_to_boundary(hex_id)
+    except (AttributeError, NameError):
         try:
-            # Try new H3 API first (v4+)
-            boundary = h3.cell_to_boundary(hex_id, 8)
+            # Fall back to old API (H3 v3)
+            boundary = h3.h3_to_geo_boundary(hex_id)
         except (AttributeError, NameError):
-            try:
-                # Fall back to old API (v3)
-                boundary = h3.h3_to_geo_boundary(hex_id)
-            except Exception:
-                pass  # stay with fallback
-
-    # Ensure format is [[lat, lon], ...]
+            # If H3 not available, create approximate hex
+            return hex_corners_fallback(0, 0, HEX_RADIUS)
+    
+    # Convert from (lat, lon) to [lat, lon] list format for Folium
     return [[lat, lon] for lat, lon in boundary]
-
 
 def hex_corners_fallback(lat, lng, radius=HEX_RADIUS):
     """Fallback approximate hexagon corners (only used if H3 unavailable)"""
@@ -168,47 +152,44 @@ def load_idea_schools_file(file_path='sf_schools_idea_2024.feather'):
             print(f"Warning: {file_path} not found")
             return None
         
-        gdf = gpd.read_feather(file_path)
-        print(f"Loaded {len(gdf)} IDEA schools from {file_path}")
+        df = pd.read_feather(file_path)
+        print(f"Loaded {len(df)} IDEA schools from {file_path}")
         
-        # Extract coordinates from geometry
-        if 'geometry' in gdf.columns:
-            gdf['lat'] = gdf.geometry.y
-            gdf['lng'] = gdf.geometry.x
+        # This file should have school info but may need coordinate extraction
+        # For now, we'll skip coordinate extraction and just load the basic data
+        print(f"School data columns: {list(df.columns)}")
         
-        return gdf
+        return df
         
     except Exception as e:
         print(f"Error loading IDEA schools data: {e}")
         return None
 
 def load_counties_file(file_path='sf_counties_2022.feather'):
-    """Load county boundaries from feather file"""
+    """Load county boundaries from feather file (simplified)"""
     try:
         if not os.path.exists(file_path):
             print(f"Warning: {file_path} not found")
             return None
         
-        gdf = gpd.read_feather(file_path)
-        print(f"Loaded {len(gdf)} counties from {file_path}")
-        
-        return gdf
+        # Skip counties for now to avoid geopandas dependency
+        print(f"Skipping {file_path} (requires geopandas for geometry processing)")
+        return None
         
     except Exception as e:
         print(f"Error loading counties data: {e}")
         return None
 
 def load_states_file(file_path='sf_states_2022.feather'):
-    """Load state boundaries from feather file"""
+    """Load state boundaries from feather file (simplified)"""
     try:
         if not os.path.exists(file_path):
             print(f"Warning: {file_path} not found")
             return None
         
-        gdf = gpd.read_feather(file_path)
-        print(f"Loaded {len(gdf)} states from {file_path}")
-        
-        return gdf
+        # Skip states for now to avoid geopandas dependency  
+        print(f"Skipping {file_path} (requires geopandas for geometry processing)")
+        return None
         
     except Exception as e:
         print(f"Error loading states data: {e}")
