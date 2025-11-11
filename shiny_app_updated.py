@@ -34,21 +34,36 @@ HEX_RADIUS = 0.005
 # -----------------------------
 # Utility Functions
 # -----------------------------
-def get_h3_hex_boundary(hex_id):
-    """Get actual H3 hex boundary coordinates (compatible with both H3 v3 and v4+)"""
+def get_h3_hex_boundary(hex_id, use_h3=False):
+    """
+    Get hex boundary coordinates.
+    Defaults to manual flat-geometry hexes for consistent visual alignment.
+    If use_h3=True and H3 is available, uses H3's geodesic boundaries.
+    """
+    # Convert hex ID to approximate centroid
     try:
-        # Try new API first (H3 v4+)
-        boundary = h3.cell_to_boundary(hex_id, 8)
-    except (AttributeError, NameError):
+        lat, lng = h3.cell_to_latlng(hex_id)
+    except Exception:
+        lat, lng = (0, 0)
+
+    # Default: manual hex corners
+    boundary = hex_corners_fallback(lat, lng, HEX_RADIUS)
+
+    # Optionally try real H3 boundary
+    if use_h3:
         try:
-            # Fall back to old API (H3 v3)
-            boundary = h3.h3_to_geo_boundary(hex_id, )
+            # Try new H3 API first (v4+)
+            boundary = h3.cell_to_boundary(hex_id, 8)
         except (AttributeError, NameError):
-            # If H3 not available, create approximate hex
-            return hex_corners_fallback(0, 0, HEX_RADIUS)
-    
-    # Convert from (lat, lon) to [lat, lon] list format for Folium
+            try:
+                # Fall back to old API (v3)
+                boundary = h3.h3_to_geo_boundary(hex_id)
+            except Exception:
+                pass  # stay with fallback
+
+    # Ensure format is [[lat, lon], ...]
     return [[lat, lon] for lat, lon in boundary]
+
 
 def hex_corners_fallback(lat, lng, radius=HEX_RADIUS):
     """Fallback approximate hexagon corners (only used if H3 unavailable)"""
